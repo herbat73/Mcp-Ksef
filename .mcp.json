@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "remote-math-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:3001/"
+      ],
+      "env": {}
+    }
+  }
+}

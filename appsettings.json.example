@@ -1,0 +1,77 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Authentication": "Information"
+    }
+  },
+  "AllowedHosts": "*",
+  "Server": {
+    "Port": 3001,
+    "Host": "0.0.0.0"
+  },
+  "Authentication": {
+    "Mode": "AuthorizationServer",
+    "OAuth": {
+      "Issuer": "http://localhost:3001",
+      "AccessTokenLifetime": "08:00:00",
+      "RefreshTokenLifetime": "30.00:00:00",
+      "EnableDynamicClientRegistration": true,
+      "RequireClientApproval": false,
+      "RequireClientCertificates": false,
+      "Signing": {
+        "Algorithm": "RS256",
+        "KeyRotationInterval": "90.00:00:00",
+        "UseHSM": false
+      }
+    },
+    "WebAuthn": {
+      "Enabled": true,
+      "ServerDomain": "localhost",
+      "ServerName": "Enterprise MCP Server",
+      "AllowedOrigins": ["http://localhost:3001"],
+      "RequireAttestationValidation": false,
+      "AllowedAuthenticatorTypes": ["platform", "cross-platform"],
+      "RequireUserVerification": true,
+      "ChallengeTimeout": "00:02:00"
+    },
+    "MultiTenant": {
+      "Enabled": false,
+      "ResolutionStrategy": "Header",
+      "TenantHeaderName": "X-Tenant-ID",
+      "DefaultTenantId": "default",
+      "EnforceStrictIsolation": true
+    },
+    "ExternalIdP": {
+      "Provider": "AzureAD",
+      "ClientSecret": "YOUR_AZURE_AD_CLIENT_SECRET_HERE",
+      "AzureAD": {
+        "TenantId": "YOUR-TENANT-ID-HERE",
+        "ClientId": "YOUR-CLIENT-ID-HERE",
+        "Authority": "https://login.microsoftonline.com/YOUR-TENANT-ID-HERE",
+        "RedirectUris": [
+          "http://localhost:3001/oauth/callback",
+          "https://localhost:3001/oauth/callback"
+        ],
+        "RequiredScopes": ["User.Read"]
+      },
+      "TokenValidation": {
+        "ValidIssuer": "https://login.microsoftonline.com/YOUR-TENANT-ID-HERE/v2.0",
+        "ValidAudience": "YOUR-CLIENT-ID-HERE",
+        "ClockSkew": "00:05:00"
+      }
+    },
+    "Security": {
+      "EnableAuditLogging": true,
+      "EnableThreatDetection": false,
+      "ComplianceFrameworks": [],
+      "RateLimit": {
+        "Enabled": true,
+        "RequestsPerMinute": 60,
+        "RequestsPerHourPerUser": 1000,
+        "BurstAllowance": 10
+      }
+    }
+  }
+}
