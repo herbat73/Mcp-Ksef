@@ -66,17 +66,17 @@ launchctl list | grep remotemcp
 The `.mcp.json` configuration file is already set up:
 ```json
 {
-  "mcpServers": {
-    "remote-math-server": {
-      "type": "stdio", 
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:3001/"
-      ],
-      "env": {}
-    }
-  }
+   "mcpServers": {
+      "remote-mcp-ksef-server": {
+         "type": "stdio",
+         "command": "npx",
+         "args": [
+            "mcp-ksef-remote",
+            "http://localhost:3001/"
+         ],
+         "env": {}
+      }
+   }
 }
 ```
 

@@ -1,0 +1,469 @@
+# Remote MCP Server Architecture Rules
+
+## CRITICAL PACKAGE REQUIREMENTS - DO NOT CHANGE
+
+### ✅ REQUIRED: Use Preview MCP Package
+```xml
+<PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.3.0-preview.4" />
+```
+- ❌ NEVER attempt to use version "0.3.0" or other "stable" versions - they don't exist
+- ❌ NEVER downgrade to older preview versions without testing
+- ✅ ALWAYS use the latest available preview version (currently 0.3.0-preview.4)
+
+### ✅ REQUIRED: Target Framework
+```xml
+<TargetFramework>net9.0</TargetFramework>
+```
+- ❌ NEVER downgrade .NET version without solid technical justification
+- ✅ ALWAYS use the latest .NET version compatible with MCP packages
+
+## CRITICAL SERVICE REGISTRATION - EXACT ORDER REQUIRED
+
+### ✅ REQUIRED: MCP Service Registration Pattern
+```csharp
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
+```
+- ❌ NEVER change the method chain order
+- ❌ NEVER omit `.WithHttpTransport()` for remote servers
+- ❌ NEVER omit `.WithToolsFromAssembly()` for automatic tool discovery
+- ✅ ALWAYS use this exact chain for HTTP-based MCP servers
+
+### ✅ REQUIRED: CORS Configuration
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+```
+- ❌ NEVER omit CORS configuration for remote MCP servers
+- ❌ NEVER use restrictive CORS policies without understanding MCP client requirements
+- ✅ ALWAYS enable permissive CORS for development/testing
+
+## CRITICAL MIDDLEWARE CONFIGURATION - EXACT ORDER REQUIRED
+
+### ✅ REQUIRED: Middleware Registration Order
+```csharp
+app.UseCors();        // MUST be before MapMcp()
+app.MapMcp();         // MUST register MCP endpoints
+```
+- ❌ NEVER change the order - CORS must come before MCP mapping
+- ❌ NEVER omit `app.UseCors()` if CORS is configured
+- ❌ NEVER omit `app.MapMcp()` - this is what creates the MCP endpoint
+- ✅ ALWAYS maintain this exact order
+
+## CRITICAL ENDPOINT ARCHITECTURE - DO NOT VIOLATE
+
+### ✅ IMMUTABLE FACT: MCP Endpoint Location
+- `app.MapMcp()` registers the MCP protocol handler at ROOT PATH `/`
+- ❌ NEVER assume the MCP endpoint is at `/mcp` or any other subpath
+- ❌ NEVER manually create routes at `/mcp` - they will conflict
+- ❌ NEVER register competing handlers at root `/` path
+- ✅ ALWAYS configure clients to connect to root `/` endpoint
+- ✅ ALWAYS put custom endpoints at non-root paths (e.g., `/health`, `/info`)
+
+### ✅ REQUIRED: Client Configuration Pattern
+```json
+{
+  "args": ["mcp-remote", "http://localhost:3001/"]
+}
+```
+- ❌ NEVER use `/mcp` in the URL - it will return 404
+- ❌ NEVER omit the trailing `/` - it may cause connection issues
+- ✅ ALWAYS point clients to the root `/` endpoint
+
+## CRITICAL TOOL IMPLEMENTATION PATTERNS
+
+### ✅ REQUIRED: Tool Class Pattern
+```csharp
+[McpServerToolType]  // REQUIRED attribute
+public static class ToolClassName
+{
+    [McpServerTool, Description("Tool description")]  // BOTH attributes required
+    public static ReturnType MethodName(
+        [Description("Parameter description")] ParameterType param)
+    {
+        // Implementation
+    }
+}
+```
+- ❌ NEVER omit `[McpServerToolType]` on tool classes
+- ❌ NEVER omit `[McpServerTool]` on tool methods
+- ❌ NEVER omit `Description` attributes - they're essential for Claude integration
+- ❌ NEVER use non-static methods or classes
+- ✅ ALWAYS use static classes and static methods
+- ✅ ALWAYS provide meaningful descriptions for tools and parameters
+
+## CRITICAL BUILD CONFIGURATION
+
+### ✅ REQUIRED: Compilation Control (if multiple .cs files exist)
+```xml
+<ItemGroup>
+  <Compile Remove="**/*.cs" />
+  <Compile Include="Program.cs" />
+</ItemGroup>
+```
+- ❌ NEVER allow multiple files with duplicate class definitions to compile together
+- ❌ NEVER ignore compilation conflicts - they will cause build failures
+- ✅ ALWAYS use explicit compilation control if you have auxiliary .cs files
+- ✅ ALWAYS ensure only one file contains the main MCP server implementation
+
+## CRITICAL LOGGING CONFIGURATION
+
+### ✅ REQUIRED: MCP Logging Convention
+```csharp
+builder.Logging.AddConsole(consoleLogOptions =>
+{
+    consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+});
+```
+- ❌ NEVER omit MCP logging configuration
+- ❌ NEVER change LogToStandardErrorThreshold without understanding MCP conventions
+- ✅ ALWAYS log to stderr for MCP protocol compliance
+
+## CRITICAL ERROR HANDLING PATTERNS
+
+### ✅ REQUIRED: Tool Error Handling
+```csharp
+public static double Divide(double a, double b)
+{
+    if (b == 0)
+        throw new ArgumentException("Division by zero is not allowed");
+    return a / b;
+}
+```
+- ❌ NEVER let tools fail silently
+- ❌ NEVER return null or invalid responses without proper error messages
+- ✅ ALWAYS validate inputs and throw meaningful exceptions
+- ✅ ALWAYS provide clear error messages that Claude can understand and relay
+
+## DEVELOPMENT WORKFLOW RULES
+
+### ✅ REQUIRED: Testing Protocol
+1. Test HTTP endpoint directly: `curl http://localhost:3001/`
+2. Verify MCP error response (indicates protocol is working)
+3. Test mcp-remote proxy: `npx mcp-remote http://localhost:3001/`
+4. Verify Claude Code recognition: `claude mcp list`
+5. Test tool execution in Claude Code
+
+- ❌ NEVER skip HTTP-level testing
+- ❌ NEVER assume MCP is working if HTTP tests fail
+- ✅ ALWAYS test at multiple levels (HTTP, proxy, client)
+
+### ✅ REQUIRED: Port Management
+- ❌ NEVER ignore port conflicts - they cause binding failures
+- ❌ NEVER run multiple instances on the same port
+- ✅ ALWAYS kill existing processes before restarting: `lsof -ti:3001 | xargs kill -9`
+- ✅ ALWAYS verify the server is actually listening on the expected port
+
+## ARCHITECTURE INVARIANTS - THESE CANNOT CHANGE
+
+1. **MCP Protocol Handler Location**: Always at root `/` when using `app.MapMcp()`
+2. **Package Ecosystem State**: Preview versions are the only available versions
+3. **Transport Requirements**: HTTP transport requires specific service registration chain
+4. **Tool Discovery Mechanism**: Attribute-based discovery requires specific attribute usage
+5. **Client Integration Pattern**: mcp-remote proxy is required for Claude Code HTTP transport
+
+## DEBUGGING HIERARCHY - FOLLOW THIS ORDER
+
+1. **Package Resolution**: Verify preview packages install correctly
+2. **HTTP Layer**: Test basic HTTP connectivity to root endpoint
+3. **MCP Protocol**: Verify MCP error responses (indicates protocol negotiation works)
+4. **Proxy Layer**: Test mcp-remote connection
+5. **Client Integration**: Verify Claude Code can list and use tools
+
+- ❌ NEVER skip earlier layers when debugging higher layers
+- ✅ ALWAYS debug from the bottom up - HTTP before MCP before proxy before client
+
+## FORBIDDEN MODIFICATIONS
+
+- ❌ NEVER modify the core MCP service registration chain
+- ❌ NEVER change the middleware order
+- ❌ NEVER assume different endpoint locations without verification
+- ❌ NEVER ignore build conflicts or compilation errors
+- ❌ NEVER skip CORS configuration for remote servers
+- ❌ NEVER omit error handling in tool implementations
+
+## REQUIRED VERIFICATION CHECKLIST
+
+Before considering the implementation complete:
+- [ ] Server starts without errors
+- [ ] `curl http://localhost:3001/` returns MCP protocol error (good!)
+- [ ] `npx mcp-remote http://localhost:3001/` connects successfully
+- [ ] `claude mcp list` shows server as connected
+- [ ] All tools execute correctly in Claude Code
+- [ ] Error cases are handled gracefully
+
+Violation of these rules will result in non-functional MCP servers. These patterns were discovered through extensive debugging and represent the only known working configuration for remote MCP servers with Claude Code integration.
+
+## ADVANCED REFLECTION ARCHITECTURE RULES
+
+### ✅ REQUIRED: Reflection Imports
+```csharp
+using System.Reflection;
+```
+- ❌ NEVER omit System.Reflection import for reflection tools
+- ✅ ALWAYS include this import when implementing reflection functionality
+
+### ✅ REQUIRED: Safe Reflection Pattern
+```csharp
+[McpServerToolType]
+public static class ReflectionTools
+{
+    [McpServerTool, Description("Lists all available MCP tools with their descriptions and parameters")]
+    public static object ListAllTools()
+    {
+        var toolTypes = Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+        
+        // Process tools safely...
+        return structuredObject; // MUST be JSON-serializable
+    }
+}
+```
+
+### ✅ CRITICAL REFLECTION PATTERNS - DO NOT VIOLATE
+
+#### Assembly Introspection Pattern
+```csharp
+var toolTypes = Assembly.GetExecutingAssembly()
+    .GetTypes()
+    .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+```
+- ❌ NEVER use Assembly.GetEntryAssembly() - may return null
+- ❌ NEVER use Assembly.LoadFrom() or external assembly loading
+- ❌ NEVER access types without attribute filtering
+- ✅ ALWAYS use GetExecutingAssembly() for safe, scoped introspection
+- ✅ ALWAYS filter on McpServerToolTypeAttribute to avoid unrelated types
+
+#### Method Discovery Pattern
+```csharp
+var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+    .Where(m => m.GetCustomAttribute<McpServerToolAttribute>() != null);
+```
+- ❌ NEVER omit BindingFlags.Static - tools must be static
+- ❌ NEVER include non-public methods
+- ❌ NEVER skip McpServerToolAttribute filtering
+- ✅ ALWAYS use Public | Static binding flags
+- ✅ ALWAYS filter on McpServerToolAttribute
+
+#### Parameter Analysis Pattern
+```csharp
+var parameters = method.GetParameters().Select(p => new
+{
+    name = p.Name,
+    type = p.ParameterType.Name,
+    description = p.GetCustomAttribute<DescriptionAttribute>()?.Description ?? "No description",
+    hasDefaultValue = p.HasDefaultValue,
+    defaultValue = p.HasDefaultValue ? p.DefaultValue?.ToString() : null
+}).ToArray();
+```
+- ❌ NEVER return ParameterInfo objects directly (not JSON-serializable)
+- ❌ NEVER omit null-coalescing for optional descriptions
+- ❌ NEVER forget to handle default values properly
+- ✅ ALWAYS create anonymous objects for JSON serialization
+- ✅ ALWAYS provide fallback descriptions
+- ✅ ALWAYS handle default values and optional parameters
+
+### ✅ REQUIRED: Reflection Tool Implementations
+
+#### Tool Inventory (ListAllTools)
+- ❌ NEVER return incomplete tool information
+- ❌ NEVER skip category organization
+- ✅ ALWAYS include totalTools count
+- ✅ ALWAYS provide categories array
+- ✅ ALWAYS include complete parameter information
+
+#### Tool Information (GetToolInfo)
+- ❌ NEVER throw exceptions for missing tools
+- ❌ NEVER return null or undefined responses
+- ✅ ALWAYS return {found: false} for missing tools
+- ✅ ALWAYS provide detailed parameter analysis for found tools
+- ✅ ALWAYS include both simple and full type names
+
+#### Category Filtering (ListToolsByCategory)
+- ❌ NEVER assume exact category name matches
+- ❌ NEVER fail silently for invalid categories
+- ✅ ALWAYS handle case-insensitive category matching
+- ✅ ALWAYS append "Tools" suffix if missing
+- ✅ ALWAYS provide available categories when category not found
+
+#### Search Functionality (SearchTools)
+- ❌ NEVER perform case-sensitive searches
+- ❌ NEVER limit search to names only
+- ✅ ALWAYS convert search terms to lowercase
+- ✅ ALWAYS search both names and descriptions
+- ✅ ALWAYS indicate match type (name vs description)
+
+#### Server Metadata (GetServerMetadata)
+- ❌ NEVER expose sensitive information
+- ❌ NEVER return null or incomplete metadata
+- ✅ ALWAYS include tool counts and categories
+- ✅ ALWAYS provide .NET version and assembly information
+- ✅ ALWAYS list reflection capabilities
+
+### ✅ REQUIRED: JSON Serialization Compatibility
+
+```csharp
+// ✅ CORRECT: JSON-serializable anonymous objects
+return new { 
+    found = true,
+    tools = toolArray,
+    count = tools.Length 
+};
+
+// ❌ INCORRECT: Non-serializable objects
+return methodInfo; // MethodInfo not JSON-serializable
+return parameterInfo; // ParameterInfo not JSON-serializable
+```
+
+### ✅ CRITICAL: Error Handling in Reflection
+
+```csharp
+public static object GetToolInfo(string toolName)
+{
+    try 
+    {
+        // Reflection logic here...
+        if (toolFound)
+            return new { found = true, /* tool info */ };
+        else
+            return new { found = false, message = $"Tool '{toolName}' not found" };
+    }
+    catch (Exception ex)
+    {
+        return new { found = false, error = ex.Message };
+    }
+}
+```
+- ❌ NEVER let reflection exceptions bubble up to MCP layer
+- ❌ NEVER return null from reflection tools
+- ✅ ALWAYS wrap reflection operations in try-catch
+- ✅ ALWAYS return structured error responses
+- ✅ ALWAYS provide meaningful error messages
+
+### ✅ SECURITY RULES FOR REFLECTION
+
+- ❌ NEVER load external assemblies
+- ❌ NEVER execute dynamically generated code
+- ❌ NEVER expose internal or private members
+- ❌ NEVER allow modification of discovered tools
+- ✅ ALWAYS limit reflection to current executing assembly
+- ✅ ALWAYS filter to only MCP-attributed classes/methods
+- ✅ ALWAYS provide read-only introspection
+- ✅ ALWAYS maintain attribute-based security boundaries
+
+### ✅ PERFORMANCE CONSIDERATIONS
+
+```csharp
+// ✅ EFFICIENT: Single assembly scan with LINQ
+var toolTypes = Assembly.GetExecutingAssembly()
+    .GetTypes()
+    .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+
+// ❌ INEFFICIENT: Multiple assembly scans
+foreach (var type in Assembly.GetExecutingAssembly().GetTypes())
+{
+    if (type.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+    {
+        // Process each type with separate scans...
+    }
+}
+```
+- ❌ NEVER perform redundant assembly scans
+- ❌ NEVER load reflection data unnecessarily
+- ✅ ALWAYS use efficient LINQ operations
+- ✅ ALWAYS minimize reflection operations per call
+
+### ✅ REFLECTION VERIFICATION CHECKLIST
+
+Additional verification requirements for reflection-enabled servers:
+- [ ] All 5 reflection tools are implemented and functional
+- [ ] `ListAllTools()` returns complete tool inventory with 16+ tools
+- [ ] `GetToolInfo("Add")` returns detailed parameter information
+- [ ] `ListToolsByCategory("Math")` returns all math tools
+- [ ] `SearchTools("text")` finds relevant text-processing tools
+- [ ] `GetServerMetadata()` returns comprehensive server information
+- [ ] All reflection responses are valid JSON
+- [ ] Error cases return structured error responses
+- [ ] No reflection exceptions bubble up to client
+- [ ] Reflection tools follow all MCP architectural rules
+
+## REFLECTION ARCHITECTURE INVARIANTS
+
+These reflection patterns CANNOT be changed without breaking the introspection system:
+
+1. **Assembly Scope**: Reflection limited to executing assembly only
+2. **Attribute Filtering**: Only MCP-attributed classes and methods exposed
+3. **Static Method Requirement**: All tools must be static for reflection discovery
+4. **JSON Serialization**: All reflection responses must be JSON-serializable
+5. **Error Handling**: Structured error responses required for all failure cases
+6. **Security Boundaries**: No dynamic code execution or assembly loading permitted
+
+Violation of these reflection rules will result in non-functional introspection capabilities and potential security vulnerabilities.
+
+## SOLID PRINCIPLES COMPLIANCE RULES
+
+### ✅ REQUIRED: Tool File Organization
+```
+Tools/
+├── MathTools.cs       # Math operations only
+├── UtilityTools.cs    # Utility functions only  
+├── DataTools.cs       # Data manipulation only
+└── ReflectionTools.cs # Introspection tools only
+```
+- ❌ NEVER put tool classes in Program.cs
+- ❌ NEVER mix different tool categories in the same file
+- ✅ ALWAYS create separate files for each tool category
+- ✅ ALWAYS follow the established naming pattern (CategoryTools.cs)
+
+### ✅ REQUIRED: Single Responsibility Principle
+- ❌ NEVER combine server configuration with tool implementation
+- ❌ NEVER put multiple responsibilities in one class
+- ✅ ALWAYS keep Program.cs focused on server configuration only
+- ✅ ALWAYS create focused tool classes with single purposes
+
+### ✅ REQUIRED: Tool File Structure Template
+```csharp
+// Tools/YourCategoryTools.cs
+using ModelContextProtocol.Server;
+using System.ComponentModel;
+// Add other necessary using statements
+
+[McpServerToolType]
+public static class YourCategoryTools
+{
+    [McpServerTool, Description("Tool description")]
+    public static ReturnType MethodName([Description("Param description")] ParamType param)
+    {
+        // Implementation with proper error handling
+        return result;
+    }
+}
+```
+- ❌ NEVER omit required using statements
+- ❌ NEVER skip [McpServerToolType] or [McpServerTool] attributes
+- ✅ ALWAYS include ModelContextProtocol.Server and System.ComponentModel
+- ✅ ALWAYS follow the established file template pattern
+
+### ✅ REQUIRED: Open/Closed Principle Compliance
+- ❌ NEVER modify existing tool files when adding new categories
+- ❌ NEVER modify Program.cs when adding new tools
+- ✅ ALWAYS create new tool files for new categories
+- ✅ ALWAYS let assembly scanning discover new tools automatically
+
+### ✅ REQUIRED: Maintainability Standards
+- ❌ NEVER create monolithic files with multiple tool categories
+- ❌ NEVER ignore separation of concerns
+- ✅ ALWAYS organize related tools together in focused files
+- ✅ ALWAYS make it easy to locate specific tool implementations
+- ✅ ALWAYS enable independent testing and modification of tool categories
+
+Violation of SOLID principles will result in unmaintainable code and poor separation of concerns.
