@@ -6,7 +6,7 @@ public static class InfoHelper
     {
         Console.WriteLine("Remote MCP KSeF Server - Cross-platform service hosting");
         Console.WriteLine();
-        Console.WriteLine("Usage: remote-mcp-ksef [command]");
+        Console.WriteLine("Usage: mcp-ksef [command]");
         Console.WriteLine();
         Console.WriteLine("Commands:");
         Console.WriteLine("  daemon             Run as background daemon/service");
