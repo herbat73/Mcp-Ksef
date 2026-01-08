@@ -17,17 +17,17 @@ public static class BuilderHelper
     public static WebApplicationBuilder Setup(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-
+        var services  = builder.Services;
+        
         // Configure cross-platform service hosting
-        builder.Services.AddWindowsService(options =>
+        services.AddWindowsService(options =>
         {
             options.ServiceName = "Remote MCP KSeF Server";
         });
-
-        builder.Services.AddSystemd();
+        services.AddSystemd();
 
         // Add background service for lifecycle management
-        builder.Services.AddHostedService<McpServerLifecycleService>();
+        services.AddHostedService<McpServerLifecycleService>();
 
         // Configure logging to stderr (MCP convention) with UTC timestamps
         builder.Logging.AddConsole(consoleLogOptions =>
@@ -38,57 +38,57 @@ public static class BuilderHelper
         });
 
         // Register MCP server with HTTP transport (Streamable HTTP)
-        builder.Services.AddMcpServer()
+        services.AddMcpServer()
             .WithHttpTransport()
             .WithToolsFromAssembly();
 
         // Configure enterprise authentication services
-        builder.Services.Configure<AuthenticationConfiguration>(
+        services.Configure<AuthenticationConfiguration>(
             builder.Configuration.GetSection(AuthenticationConfiguration.SectionName));
 
         // Configure server settings
-        builder.Services.Configure<ServerConfiguration>(
-            builder.Configuration.GetSection(ServerConfiguration.SectionName));
+        services.Configure<ServerConfiguration>(
+        builder.Configuration.GetSection(ServerConfiguration.SectionName));
 
         // Register authentication services following Microsoft DI patterns
         // Use consistent lifetimes to avoid DI violations
 
         // Application Services (per-request scope for proper lifecycle)
-        builder.Services.AddScoped<IAuthenticationModeProvider, AuthenticationModeProvider>();
-        builder.Services.AddScoped<ITokenService, TokenService>();
-        builder.Services.AddScoped<IMultiTenantTokenService, MultiTenantTokenService>();
+        services.AddScoped<IAuthenticationModeProvider, AuthenticationModeProvider>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IMultiTenantTokenService, MultiTenantTokenService>();
 
         // Domain Layer (scoped to maintain consistency boundary)
-        builder.Services.AddScoped<Authentication.Domain.Services.IAuthenticationDomainService, Authentication.Domain.Services.AuthenticationDomainService>();
+        services.AddScoped<Authentication.Domain.Services.IAuthenticationDomainService, Authentication.Domain.Services.AuthenticationDomainService>();
 
         // Infrastructure Layer (scoped for database connection lifetime)
-        builder.Services.AddScoped<Authentication.Domain.Repositories.IUserRepository, Authentication.Infrastructure.Repositories.InMemoryUserRepository>();
+        services.AddScoped<Authentication.Domain.Repositories.IUserRepository, Authentication.Infrastructure.Repositories.InMemoryUserRepository>();
 
         // Enterprise Services (scoped for dependency consistency)
-        builder.Services.AddScoped<IEnterpriseOAuthPolicyService, EnterpriseOAuthPolicyService>();
-        builder.Services.AddScoped<IClientCertificateService, ClientCertificateService>();
-        builder.Services.AddScoped<IEnterpriseWebAuthnService, EnterpriseWebAuthnService>();
-        builder.Services.AddScoped<IPasswordlessAIAuthFlow, PasswordlessAIAuthFlow>();
+        services.AddScoped<IEnterpriseOAuthPolicyService, EnterpriseOAuthPolicyService>();
+        services.AddScoped<IClientCertificateService, ClientCertificateService>();
+        services.AddScoped<IEnterpriseWebAuthnService, EnterpriseWebAuthnService>();
+        services.AddScoped<IPasswordlessAIAuthFlow, PasswordlessAIAuthFlow>();
 
         // OAuth endpoint providers removed for clean state
 
         // Register rate limiting service
-        builder.Services.AddSingleton<IRateLimitingService, RateLimitingService>();
+        services.AddSingleton<IRateLimitingService, RateLimitingService>();
 
         // Register SOLID key management service
-        builder.Services.AddSingleton<ICryptographicUtilityService, Authentication.Domain.Services.CryptographicUtilityService>();
-        builder.Services.AddSingleton<ISigningKeyService, SigningKeyService>();
+        services.AddSingleton<ICryptographicUtilityService, Authentication.Domain.Services.CryptographicUtilityService>();
+        services.AddSingleton<ISigningKeyService, SigningKeyService>();
 
         // Register session management service for MCP and OAuth integration
-        builder.Services.AddSingleton<ISessionManagementService, SessionManagementService>();
+        services.AddSingleton<ISessionManagementService, SessionManagementService>();
 
         // Register OAuth endpoint provider services
-        builder.Services.AddScoped<SimpleOAuthEndpointProvider>();
-        builder.Services.AddScoped<LocalOAuthEndpointProvider>();
-        builder.Services.AddScoped<IOAuthEndpointProviderFactory, OAuthEndpointProviderFactory>();
+        services.AddScoped<SimpleOAuthEndpointProvider>();
+        services.AddScoped<LocalOAuthEndpointProvider>();
+        services.AddScoped<IOAuthEndpointProviderFactory, OAuthEndpointProviderFactory>();
 
         // Add multi-scheme authentication: Cookie + JWT Bearer
-        builder.Services.AddAuthentication(options =>
+        services.AddAuthentication(options =>
             {
                 // Set default scheme to Cookie for browser requests
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -111,10 +111,10 @@ public static class BuilderHelper
             });
 
         // Configure JWT Bearer options using proper IConfigureNamedOptions pattern
-        builder.Services.ConfigureOptions<ConfigureJwtBearerOptions>();
+        services.ConfigureOptions<ConfigureJwtBearerOptions>();
 
         // Add authorization with multi-scheme policy for MCP access
-        builder.Services.AddAuthorization(options =>
+        services.AddAuthorization(options =>
         {
             // Create composite policy supporting both Cookie and JWT Bearer authentication
             options.AddPolicy("McpAccess", policy =>
@@ -131,8 +131,8 @@ public static class BuilderHelper
         });
 
         // Add session support for OAuth and WebAuthn  
-        builder.Services.AddDistributedMemoryCache();
-        builder.Services.AddSession(options =>
+        services.AddDistributedMemoryCache();
+        services.AddSession(options =>
         {
             options.IdleTimeout = TimeSpan.FromHours(8); // Extend for OAuth sessions
             options.Cookie.HttpOnly = true;
@@ -142,13 +142,13 @@ public static class BuilderHelper
         });
 
         // Configure authentication database (in-memory for development)
-        builder.Services.AddDbContext<AuthDbContext>(options =>
+        services.AddDbContext<AuthDbContext>(options =>
         {
             options.UseInMemoryDatabase("AuthDatabase");
         });
 
         // Add CORS for browser-based MCP clients
-        builder.Services.AddCors(options =>
+        services.AddCors(options =>
         {
             options.AddDefaultPolicy(policy =>
             {

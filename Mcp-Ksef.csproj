@@ -23,6 +23,11 @@
     <!-- Enterprise Security and Monitoring -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.11" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+    
+    <!-- Ksef Client -->
+    <PackageReference Include="ksef.client" Version="0.6.1-rc1" />
+    <PackageReference Include="ksef.client.core" Version="0.6.1-rc1" />
+    
   </ItemGroup>
 
   <ItemGroup>

@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using RemoteMcpKsef.Consts;
 
-namespace Services;
+namespace RemoteMcpKsef.Services;
 
 /// <summary>
 /// Cross-platform service management for Remote MCP Server.
@@ -11,8 +11,6 @@ namespace Services;
 /// </summary>
 public class ServiceManager
 {
-    private readonly int _defaultPort = 3001;
-
     /// <summary>
     /// Shows the current status of the MCP server service.
     /// </summary>
@@ -20,18 +18,18 @@ public class ServiceManager
     {
         try
         {
-            Console.WriteLine("Remote MCP KSeF Server Status");
+            Console.WriteLine($"{AppConsts.AppName} Status");
             Console.WriteLine("========================");
             
             // Check if process is running
-            bool isRunning = await IsServiceRunningAsync();
+            var isRunning = await IsServiceRunningAsync();
             Console.WriteLine($"Service Status: {(isRunning ? "✅ Running" : "❌ Stopped")}");
             
             // Check if port is accessible
             if (isRunning)
             {
-                bool portAccessible = await IsPortAccessibleAsync(_defaultPort);
-                Console.WriteLine($"Port {_defaultPort}: {(portAccessible ? "✅ Accessible" : "❌ Not responding")}");
+                var portAccessible = await IsPortAccessibleAsync(AppConsts.DefaultPort);
+                Console.WriteLine($"Port {AppConsts.DefaultPort}: {(portAccessible ? "✅ Accessible" : "❌ Not responding")}");
                 
                 if (portAccessible)
                 {
@@ -85,7 +83,7 @@ public class ServiceManager
             if (!stopped)
             {
                 Console.WriteLine("⚠️  Graceful shutdown failed, using forceful stop...");
-                stopped = await StopServiceForcefullyAsync();
+                stopped = StopServiceForcefully();
             }
             
             if (stopped)
@@ -110,7 +108,7 @@ public class ServiceManager
     {
         try
         {
-            Console.WriteLine("Installing Remote MCP KSeF Server as system service...");
+            Console.WriteLine($"Installing {AppConsts.AppName} as system service...");
             
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -142,7 +140,7 @@ public class ServiceManager
     {
         try
         {
-            Console.WriteLine("Uninstalling Remote MCP KSeF Server system service...");
+            Console.WriteLine($"Uninstalling {AppConsts.AppName} system service...");
             
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -173,7 +171,7 @@ public class ServiceManager
     {
         try
         {
-            return await IsPortAccessibleAsync(_defaultPort);
+            return await IsPortAccessibleAsync(AppConsts.DefaultPort);
         }
         catch
         {
@@ -199,14 +197,14 @@ public class ServiceManager
         }
     }
 
-    private async Task<JsonElement?> GetServerInfoAsync()
+    private static async Task<JsonElement?> GetServerInfoAsync()
     {
         try
         {
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(5);
             
-            var infoUrl = $"http://localhost:{_defaultPort}/info";
+            var infoUrl = $"http://localhost:{AppConsts.DefaultPort}/info";
             var response = await httpClient.GetStringAsync(infoUrl);
             
             return JsonSerializer.Deserialize<JsonElement>(response);
@@ -217,11 +215,11 @@ public class ServiceManager
         }
     }
 
-    private string GetServiceProcessId()
+    private static string GetServiceProcessId()
     {
         try
         {
-            var processes = Process.GetProcessesByName("remote-mcp");
+            var processes = Process.GetProcessesByName(AppConsts.ServiceName);
             return processes.Length > 0 ? processes[0].Id.ToString() : "Unknown";
         }
         catch
@@ -235,14 +233,14 @@ public class ServiceManager
         try
         {
             // Send graceful shutdown signal if supported
-            var processes = Process.GetProcessesByName("remote-mcp");
+            var processes = Process.GetProcessesByName(AppConsts.ServiceName);
             
             foreach (var process in processes)
             {
                 if (!process.HasExited)
                 {
                     process.CloseMainWindow();
-                    bool exited = process.WaitForExit(10000); // Wait up to 10 seconds
+                    var exited = process.WaitForExit(10000); // Wait up to 10 seconds
                     
                     if (exited)
                     {
@@ -259,18 +257,18 @@ public class ServiceManager
         }
     }
 
-    private async Task<bool> StopServiceForcefullyAsync()
+    private static bool StopServiceForcefully()
     {
         try
         {
-            var processes = Process.GetProcessesByName("remote-mcp-ksef");
+            var processes = Process.GetProcessesByName(AppConsts.ServiceName);
             
             foreach (var process in processes)
             {
                 if (!process.HasExited)
                 {
                     process.Kill(true); // Kill the process tree
-                    bool exited = process.WaitForExit(5000); // Wait up to 5 seconds
+                    var exited = process.WaitForExit(5000); // Wait up to 5 seconds
                     
                     if (exited)
                     {
@@ -289,10 +287,10 @@ public class ServiceManager
 
     // Platform-specific service installation methods
 
-    private async Task InstallWindowsServiceAsync()
+    private static async Task InstallWindowsServiceAsync()
     {
         var executablePath = Environment.ProcessPath;
-        var arguments = "--daemon";
+        const string arguments = "--daemon";
         
         var installCommand = $"sc create \"{AppConsts.ServiceName}\" binPath= \"\\\"{executablePath}\\\" {arguments}\" DisplayName= \"{AppConsts.AppName}\" start= auto";
         
@@ -345,7 +343,7 @@ Group=nogroup
 WantedBy=multi-user.target
 ";
 
-        var serviceFile = $"/etc/systemd/system/{AppConsts.ServiceName}.service";
+        const string serviceFile = $"/etc/systemd/system/{AppConsts.ServiceName}.service";
         await File.WriteAllTextAsync(serviceFile, serviceContent);
         
         await RunCommandAsync("systemctl", "daemon-reload");
@@ -372,7 +370,7 @@ WantedBy=multi-user.target
         Console.WriteLine("✅ systemd service uninstalled successfully");
     }
 
-    private async Task InstallLaunchdServiceAsync()
+    private static async Task InstallLaunchdServiceAsync()
     {
         var executablePath = Environment.ProcessPath;
         var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -410,7 +408,7 @@ WantedBy=multi-user.target
         Console.WriteLine($"   Use: launchctl unload {plistPath}");
     }
 
-    private async Task UninstallLaunchdServiceAsync()
+    private static async Task UninstallLaunchdServiceAsync()
     {
         var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var plistPath = Path.Combine(homeDir, "Library", "LaunchAgents", $"com.{AppConsts.ServiceName}.plist");
@@ -424,19 +422,17 @@ WantedBy=multi-user.target
         Console.WriteLine("✅ launchd service uninstalled successfully");
     }
 
-    private async Task<(int ExitCode, string Output, string Error)> RunCommandAsync(string command, string arguments)
+    private static async Task<(int ExitCode, string Output, string Error)> RunCommandAsync(string command, string arguments)
     {
-        using var process = new Process
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
+            FileName = command,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
 
         process.Start();

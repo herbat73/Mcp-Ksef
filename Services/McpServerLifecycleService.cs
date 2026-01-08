@@ -95,12 +95,12 @@ public class McpServerLifecycleService : BackgroundService
         {
             // Basic health check - could be expanded to test actual MCP endpoints
             var memoryUsage = GC.GetTotalMemory(false);
-            var memoryMB = memoryUsage / 1024 / 1024;
+            var memoryMb = memoryUsage / 1024 / 1024;
             
-            if (memoryMB > 500) // Alert if memory usage exceeds 500MB
+            if (memoryMb > 500) // Alert if memory usage exceeds 500MB
             {
                 _logger.LogWarning("{ServiceName} memory usage is high: {MemoryMB}MB", 
-                    AppConsts.AppName, memoryMB);
+                    AppConsts.AppName, memoryMb);
                 
                 // Force garbage collection if memory is high
                 GC.Collect();
@@ -109,7 +109,7 @@ public class McpServerLifecycleService : BackgroundService
             }
             
             _logger.LogDebug("{ServiceName} health check completed - Memory: {MemoryMB}MB", 
-                AppConsts.AppName, memoryMB);
+                AppConsts.AppName, memoryMb);
             
             await Task.CompletedTask;
         }
