@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using RemoteMcpKsef.Consts;
 
 namespace Services;
 
@@ -10,8 +11,6 @@ namespace Services;
 /// </summary>
 public class ServiceManager
 {
-    private readonly string _serviceName = "remote-mcp-ksef";
-    private readonly string _displayName = "Remote MCP KSef Server";
     private readonly int _defaultPort = 3001;
 
     /// <summary>
@@ -295,15 +294,15 @@ public class ServiceManager
         var executablePath = Environment.ProcessPath;
         var arguments = "--daemon";
         
-        var installCommand = $"sc create \"{_serviceName}\" binPath= \"\\\"{executablePath}\\\" {arguments}\" DisplayName= \"{_displayName}\" start= auto";
+        var installCommand = $"sc create \"{AppConsts.ServiceName}\" binPath= \"\\\"{executablePath}\\\" {arguments}\" DisplayName= \"{AppConsts.AppName}\" start= auto";
         
         var result = await RunCommandAsync("cmd", $"/c {installCommand}");
         
         if (result.ExitCode == 0)
         {
             Console.WriteLine("✅ Windows service installed successfully");
-            Console.WriteLine($"   Use: sc start {_serviceName}");
-            Console.WriteLine($"   Use: sc stop {_serviceName}");
+            Console.WriteLine($"   Use: sc start {AppConsts.ServiceName}");
+            Console.WriteLine($"   Use: sc stop {AppConsts.ServiceName}");
         }
         else
         {
@@ -313,7 +312,7 @@ public class ServiceManager
 
     private async Task UninstallWindowsServiceAsync()
     {
-        var result = await RunCommandAsync("cmd", $"/c sc delete {_serviceName}");
+        var result = await RunCommandAsync("cmd", $"/c sc delete {AppConsts.ServiceName}");
         
         if (result.ExitCode == 0)
         {
@@ -329,7 +328,7 @@ public class ServiceManager
     {
         var executablePath = Environment.ProcessPath;
         var serviceContent = $@"[Unit]
-Description={_displayName}
+Description={AppConsts.AppName}
 After=network.target
 
 [Service]
@@ -346,23 +345,23 @@ Group=nogroup
 WantedBy=multi-user.target
 ";
 
-        var serviceFile = $"/etc/systemd/system/{_serviceName}.service";
+        var serviceFile = $"/etc/systemd/system/{AppConsts.ServiceName}.service";
         await File.WriteAllTextAsync(serviceFile, serviceContent);
         
         await RunCommandAsync("systemctl", "daemon-reload");
-        await RunCommandAsync("systemctl", $"enable {_serviceName}");
+        await RunCommandAsync("systemctl", $"enable {AppConsts.ServiceName}");
         
         Console.WriteLine("✅ systemd service installed successfully");
-        Console.WriteLine($"   Use: sudo systemctl start {_serviceName}");
-        Console.WriteLine($"   Use: sudo systemctl stop {_serviceName}");
+        Console.WriteLine($"   Use: sudo systemctl start {AppConsts.ServiceName}");
+        Console.WriteLine($"   Use: sudo systemctl stop {AppConsts.ServiceName}");
     }
 
     private async Task UninstallSystemdServiceAsync()
     {
-        await RunCommandAsync("systemctl", $"stop {_serviceName}");
-        await RunCommandAsync("systemctl", $"disable {_serviceName}");
+        await RunCommandAsync("systemctl", $"stop {AppConsts.ServiceName}");
+        await RunCommandAsync("systemctl", $"disable {AppConsts.ServiceName}");
         
-        var serviceFile = $"/etc/systemd/system/{_serviceName}.service";
+        var serviceFile = $"/etc/systemd/system/{AppConsts.ServiceName}.service";
         if (File.Exists(serviceFile))
         {
             File.Delete(serviceFile);
@@ -377,14 +376,14 @@ WantedBy=multi-user.target
     {
         var executablePath = Environment.ProcessPath;
         var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var plistPath = Path.Combine(homeDir, "Library", "LaunchAgents", $"com.{_serviceName}.plist");
+        var plistPath = Path.Combine(homeDir, "Library", "LaunchAgents", $"com.{AppConsts.ServiceName}.plist");
         
         var plistContent = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
 <plist version=""1.0"">
 <dict>
     <key>Label</key>
-    <string>com.{_serviceName}</string>
+    <string>com.{AppConsts.ServiceName}</string>
     <key>ProgramArguments</key>
     <array>
         <string>{executablePath}</string>
@@ -393,9 +392,9 @@ WantedBy=multi-user.target
     <key>WorkingDirectory</key>
     <string>{Environment.CurrentDirectory}</string>
     <key>StandardOutPath</key>
-    <string>/tmp/{_serviceName}-stdout.log</string>
+    <string>/tmp/{AppConsts.ServiceName}-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/{_serviceName}-stderr.log</string>
+    <string>/tmp/{AppConsts.ServiceName}-stderr.log</string>
     <key>KeepAlive</key>
     <true/>
     <key>RunAtLoad</key>
@@ -414,7 +413,7 @@ WantedBy=multi-user.target
     private async Task UninstallLaunchdServiceAsync()
     {
         var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var plistPath = Path.Combine(homeDir, "Library", "LaunchAgents", $"com.{_serviceName}.plist");
+        var plistPath = Path.Combine(homeDir, "Library", "LaunchAgents", $"com.{AppConsts.ServiceName}.plist");
         
         if (File.Exists(plistPath))
         {

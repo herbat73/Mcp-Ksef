@@ -1,5 +1,4 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using RemoteMcpKsef.Consts;
 
 namespace Services;
 
@@ -11,7 +10,6 @@ public class McpServerLifecycleService : BackgroundService
 {
     private readonly ILogger<McpServerLifecycleService> _logger;
     private readonly IHostApplicationLifetime _appLifetime;
-    private readonly string _serviceName = "Remote MCP KSeF Server";
     
     public McpServerLifecycleService(
         ILogger<McpServerLifecycleService> logger,
@@ -29,7 +27,7 @@ public class McpServerLifecycleService : BackgroundService
         try
         {
             _logger.LogInformation("{ServiceName} background service started at {Time}", 
-                _serviceName, DateTime.UtcNow);
+                AppConsts.AppName, DateTime.UtcNow);
 
             // Service startup tasks
             await OnServiceStartedAsync(stoppingToken);
@@ -47,11 +45,11 @@ public class McpServerLifecycleService : BackgroundService
         catch (OperationCanceledException)
         {
             // This is expected when cancellation is requested
-            _logger.LogInformation("{ServiceName} background service stopped", _serviceName);
+            _logger.LogInformation("{ServiceName} background service stopped", AppConsts.AppName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{ServiceName} background service encountered an error", _serviceName);
+            _logger.LogError(ex, "{ServiceName} background service encountered an error", AppConsts.AppName);
             
             // Optionally stop the entire application on critical errors
             _appLifetime.StopApplication();
@@ -70,7 +68,7 @@ public class McpServerLifecycleService : BackgroundService
             var processId = Environment.ProcessId;
             var workingDirectory = Environment.CurrentDirectory;
             
-            _logger.LogInformation("{ServiceName} startup details:", _serviceName);
+            _logger.LogInformation("{ServiceName} startup details:", AppConsts.AppName);
             _logger.LogInformation("  Operating System: {OS}", operatingSystem);
             _logger.LogInformation("  Process ID: {PID}", processId);
             _logger.LogInformation("  Working Directory: {WorkingDir}", workingDirectory);
@@ -79,11 +77,11 @@ public class McpServerLifecycleService : BackgroundService
             // Perform any startup validation
             await ValidateServiceConfigurationAsync(cancellationToken);
             
-            _logger.LogInformation("{ServiceName} successfully initialized", _serviceName);
+            _logger.LogInformation("{ServiceName} successfully initialized", AppConsts.AppName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during {ServiceName} startup", _serviceName);
+            _logger.LogError(ex, "Error during {ServiceName} startup", AppConsts.AppName);
             throw;
         }
     }
@@ -102,7 +100,7 @@ public class McpServerLifecycleService : BackgroundService
             if (memoryMB > 500) // Alert if memory usage exceeds 500MB
             {
                 _logger.LogWarning("{ServiceName} memory usage is high: {MemoryMB}MB", 
-                    _serviceName, memoryMB);
+                    AppConsts.AppName, memoryMB);
                 
                 // Force garbage collection if memory is high
                 GC.Collect();
@@ -111,13 +109,13 @@ public class McpServerLifecycleService : BackgroundService
             }
             
             _logger.LogDebug("{ServiceName} health check completed - Memory: {MemoryMB}MB", 
-                _serviceName, memoryMB);
+                AppConsts.AppName, memoryMB);
             
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during {ServiceName} health check", _serviceName);
+            _logger.LogError(ex, "Error during {ServiceName} health check", AppConsts.AppName);
         }
     }
 
@@ -134,13 +132,13 @@ public class McpServerLifecycleService : BackgroundService
             // - Updating configuration
             // - Health reporting
             
-            _logger.LogDebug("{ServiceName} maintenance tasks completed", _serviceName);
+            _logger.LogDebug("{ServiceName} maintenance tasks completed", AppConsts.AppName);
             
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during {ServiceName} maintenance", _serviceName);
+            _logger.LogError(ex, "Error during {ServiceName} maintenance", AppConsts.AppName);
         }
     }
 
@@ -154,7 +152,7 @@ public class McpServerLifecycleService : BackgroundService
             // Validate that required services are available
             // This could check database connections, external dependencies, etc.
             
-            _logger.LogInformation("{ServiceName} configuration validation completed", _serviceName);
+            _logger.LogInformation("{ServiceName} configuration validation completed", AppConsts.AppName);
             
             await Task.CompletedTask;
         }
@@ -170,7 +168,7 @@ public class McpServerLifecycleService : BackgroundService
     /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("{ServiceName} background service stopping...", _serviceName);
+        _logger.LogInformation("{ServiceName} background service stopping...", AppConsts.AppName);
         
         try
         {
@@ -180,11 +178,11 @@ public class McpServerLifecycleService : BackgroundService
             // Call base implementation
             await base.StopAsync(cancellationToken);
             
-            _logger.LogInformation("{ServiceName} background service stopped gracefully", _serviceName);
+            _logger.LogInformation("{ServiceName} background service stopped gracefully", AppConsts.AppName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during {ServiceName} shutdown", _serviceName);
+            _logger.LogError(ex, "Error during {ServiceName} shutdown", AppConsts.AppName);
         }
     }
 
@@ -200,13 +198,13 @@ public class McpServerLifecycleService : BackgroundService
             // - Flush logs
             // - Save state
             
-            _logger.LogInformation("{ServiceName} cleanup completed", _serviceName);
+            _logger.LogInformation("{ServiceName} cleanup completed", AppConsts.AppName);
             
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during {ServiceName} cleanup", _serviceName);
+            _logger.LogError(ex, "Error during {ServiceName} cleanup", AppConsts.AppName);
         }
     }
 }

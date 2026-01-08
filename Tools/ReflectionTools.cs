@@ -1,6 +1,8 @@
-using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Reflection;
+using ModelContextProtocol.Server;
+
+namespace RemoteMcpKsef.Tools;
 
 /// <summary>
 /// Reflection and introspection tools for the MCP server.
@@ -120,7 +122,7 @@ public static class ReflectionTools
         var toolType = Assembly.GetExecutingAssembly()
             .GetTypes()
             .FirstOrDefault(t => t.Name.Equals(targetCategory, StringComparison.OrdinalIgnoreCase) && 
-                               t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
+                                 t.GetCustomAttribute<McpServerToolTypeAttribute>() != null);
 
         if (toolType == null)
         {
@@ -220,7 +222,7 @@ public static class ReflectionTools
         var totalToolCount = assembly.GetTypes()
             .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
             .Sum(t => t.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                      .Count(m => m.GetCustomAttribute<McpServerToolAttribute>() != null));
+                .Count(m => m.GetCustomAttribute<McpServerToolAttribute>() != null));
 
         return new
         {

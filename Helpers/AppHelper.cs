@@ -4,6 +4,7 @@ using Authentication.Middleware;
 using Authentication.OAuth;
 using Authentication.WebAuthn;
 using Authentication.Models;
+using RemoteMcpKsef.Consts;
 
 namespace RemoteMcpKsef.Helpers;
 
@@ -68,7 +69,7 @@ public static class AppHelper
         // Optional: Add server info endpoint for debugging
         app.MapGet("/info", () => Results.Json(new 
         { 
-            name = "Remote MCP KSeF Server",
+            name = AppConsts.AppName,
             version = "1.0.0",
             transport = "streamable-http",
             endpoints = new 
@@ -78,7 +79,7 @@ public static class AppHelper
                 protected_demo = "/protected",
                 oauth_auth = "/authorize"
             },
-            description = "Remote MCP server for KSeF"
+            description = AppConsts.AppDescription
         }));
 
         // Add protected test endpoint for OAuth 2.1 testing

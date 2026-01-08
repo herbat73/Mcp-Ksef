@@ -1,18 +1,11 @@
-using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Net;
-using System.Net.Http;
 using Authentication.Configuration;
-using Authentication.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Server;
 
-namespace Tools;
+namespace RemoteMcpKsef.Tools;
 
 /// <summary>
 /// MCP tools for enterprise authentication flows with automatic browser launching.

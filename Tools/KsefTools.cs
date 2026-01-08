@@ -1,6 +1,7 @@
-﻿using ModelContextProtocol.Server;
-using System.ComponentModel;
-using System.Text.Json;
+﻿using System.ComponentModel;
+using ModelContextProtocol.Server;
+
+namespace RemoteMcpKsef.Tools;
 
 /// <summary>
 /// Data manipulation tools for the MCP server.

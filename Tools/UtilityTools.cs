@@ -1,5 +1,7 @@
-using ModelContextProtocol.Server;
 using System.ComponentModel;
+using ModelContextProtocol.Server;
+
+namespace RemoteMcpKsef.Tools;
 
 /// <summary>
 /// General utility tools for the MCP server.
