@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Services;
 using Configuration;
+using RemoteMcpKsef.Consts;
 
 namespace RemoteMcpKsef.Helpers;
 
@@ -22,7 +23,7 @@ public static class BuilderHelper
         // Configure cross-platform service hosting
         services.AddWindowsService(options =>
         {
-            options.ServiceName = "Remote MCP KSeF Server";
+            options.ServiceName = AppConsts.AppName;
         });
         services.AddSystemd();
 
