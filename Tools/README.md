@@ -4,20 +4,10 @@ This directory contains all MCP tool implementations organized following SOLID p
 
 ## File Organization
 
-### Math Tools (`MathTools.cs`)
-**Purpose**: Basic arithmetic operations  
-**Tools**: Add, Subtract, Multiply, Divide  
-**Focus**: Mathematical calculations with proper error handling (e.g., division by zero)
-
 ### Utility Tools (`UtilityTools.cs`)  
 **Purpose**: General-purpose utility functions  
 **Tools**: Echo, GetCurrentTime, GenerateRandomNumber  
 **Focus**: System utilities and helper functions
-
-### Data Tools (`DataTools.cs`)
-**Purpose**: Text and data manipulation  
-**Tools**: FormatJson, ToUpperCase, ToLowerCase, ReverseText  
-**Focus**: String processing and data transformation
 
 ### Reflection Tools (`ReflectionTools.cs`)
 **Purpose**: Runtime introspection and tool discovery  
