@@ -9,7 +9,15 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Services;
 using Configuration;
+using KSeF.Client.Api.Services;
+using KSeF.Client.Api.Services.Internal;
+using KSeF.Client.Clients;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.DI;
+using KSeF.Client.Extensions;
 using RemoteMcpKsef.Consts;
+using RemoteMcpKsef.Models;
 
 namespace RemoteMcpKsef.Helpers;
 
@@ -19,6 +27,7 @@ public static class BuilderHelper
     {
         var builder = WebApplication.CreateBuilder(args);
         var services  = builder.Services;
+        var configuration = builder.Configuration;
         
         // Configure cross-platform service hosting
         services.AddWindowsService(options =>
@@ -45,11 +54,11 @@ public static class BuilderHelper
 
         // Configure enterprise authentication services
         services.Configure<AuthenticationConfiguration>(
-            builder.Configuration.GetSection(AuthenticationConfiguration.SectionName));
+            configuration.GetSection(AuthenticationConfiguration.SectionName));
 
         // Configure server settings
         services.Configure<ServerConfiguration>(
-        builder.Configuration.GetSection(ServerConfiguration.SectionName));
+            configuration.GetSection(ServerConfiguration.SectionName));
 
         // Register authentication services following Microsoft DI patterns
         // Use consistent lifetimes to avoid DI violations
@@ -159,6 +168,36 @@ public static class BuilderHelper
             });
         });
 
+        ConfigureKsefServices(services, configuration);
+
         return builder;
+    }
+    
+    private static void ConfigureKsefServices(IServiceCollection services, IConfiguration configuration)
+    {
+        var ksefSettings = configuration.GetSection(nameof(KsefSettings)).Get<KsefSettings>();
+        CryptographyConfigInitializer.EnsureInitialized();
+        services.AddKSeFClient(options =>
+        {
+            options.BaseUrl = ksefSettings.BaseUrl;
+        });
+            
+        services.AddCryptographyClient();
+            
+        services.AddSingleton<ICryptographyClient, CryptographyClient>();
+        services.AddSingleton<ICertificateFetcher, DefaultCertificateFetcher>();
+        services.AddSingleton<ICryptographyService, CryptographyService>();
+        // Rejestracja usługi hostowanej (Hosted Service) jako singleton
+        services.AddSingleton<CryptographyWarmupHostedService>();
+            
+        var serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+            
+        var scope = serviceProvider.CreateScope();
+        scope.ServiceProvider.GetRequiredService<CryptographyWarmupHostedService>()
+            .StartAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 }
