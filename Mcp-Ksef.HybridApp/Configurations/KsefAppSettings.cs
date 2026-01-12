@@ -9,7 +9,7 @@ namespace McpKsef.HybridApp.Configurations;
 /// <summary>
 /// This represents the application settings for markdown-to-html app.
 /// </summary>
-public class MarkdownToHtmlAppSettings : AppSettings
+public class KsefAppSettings : AppSettings
 {
     /// <inheritdoc />
     public override OpenApiInfo OpenApi { get; set; } = new()
@@ -36,18 +36,18 @@ public class MarkdownToHtmlAppSettings : AppSettings
             {
                 case "--tech-community":
                 case "-tc":
-                    (settings as MarkdownToHtmlAppSettings)!.Html.TechCommunity = true;
+                    (settings as KsefAppSettings)!.Html.TechCommunity = true;
                     break;
 
                 case "--extra-paragraph":
                 case "-p":
-                    (settings as MarkdownToHtmlAppSettings)!.Html.ExtraParagraph = true;
+                    (settings as KsefAppSettings)!.Html.ExtraParagraph = true;
                     break;
 
                 case "--tags":
                     if (i < args.Length - 1)
                     {
-                        (settings as MarkdownToHtmlAppSettings)!.Html.Tags = args[++i];
+                        (settings as KsefAppSettings)!.Html.Tags = args[++i];
                     }
                     break;
 

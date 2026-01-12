@@ -3,19 +3,14 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-
     <UserSecretsId>a83833d7-84f2-4942-9620-8c162e8ef2ee</UserSecretsId>
-
-    <PackageId>McpKsef.HybridApp</PackageId>
+    <PackageId>Mcp-Ksef.HybridApp</PackageId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <RootNamespace>McpKsef.HybridApp</RootNamespace>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Markdig" Version="0.*" />
-  </ItemGroup>
-
+  
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>

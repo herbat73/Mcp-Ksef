@@ -8,7 +8,7 @@ IHostApplicationBuilder builder = useStreamableHttp
                                 ? WebApplication.CreateBuilder(args)
                                 : Host.CreateApplicationBuilder(args);
 
-builder.Services.AddAppSettings<MarkdownToHtmlAppSettings>(builder.Configuration, args);
+builder.Services.AddAppSettings<KsefAppSettings>(builder.Configuration, args);
 
 IHost app = builder.BuildApp(useStreamableHttp);
 

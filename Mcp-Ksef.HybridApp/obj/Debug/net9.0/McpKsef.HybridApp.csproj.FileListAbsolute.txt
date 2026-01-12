@@ -6,7 +6,6 @@ C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\McpKsef
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\McpKsef.HybridApp.runtimeconfig.json
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\McpKsef.HybridApp.dll
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\McpKsef.HybridApp.pdb
-C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\Markdig.dll
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\Microsoft.Extensions.AI.Abstractions.dll
 C:\Users\aadam\RiderProjects\Mcp-Ksef\McpKsef.HybridApp\bin\Debug\net9.0\Microsoft.Extensions.Configuration.Abstractions.dll

@@ -1,5 +1,4 @@
 using Shared.Configurations;
-
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi.Any;

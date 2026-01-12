@@ -3,9 +3,9 @@
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 
 COPY ./Shared /source/Shared
-COPY ./McpKsef.HybridApp /source/McpKsef.HybridApp
+COPY ./Mcp-Ksef.HybridApp /source/Mcp-Ksef.HybridApp
 
-WORKDIR /source/McpKsef.HybridApp
+WORKDIR /source/Mcp-Ksef.HybridApp
 
 ARG TARGETARCH
 RUN case "$TARGETARCH" in \
@@ -23,4 +23,4 @@ COPY --from=build /app .
 
 USER $APP_UID
 
-ENTRYPOINT ["dotnet", "McpKsef.HybridApp.dll"]
+ENTRYPOINT ["dotnet", "Mcp-Ksef.HybridApp.dll"]

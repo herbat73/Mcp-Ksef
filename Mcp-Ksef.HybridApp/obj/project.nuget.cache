@@ -1,10 +1,9 @@
 {
   "version": 2,
-  "dgSpecHash": "mFrWIYWPSeg=",
+  "dgSpecHash": "570r6tKy9KA=",
   "success": true,
-  "projectFilePath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\McpKsef.HybridApp\\McpKsef.HybridApp.csproj",
+  "projectFilePath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\Mcp-Ksef.HybridApp\\Mcp-Ksef.HybridApp.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\aadam\\.nuget\\packages\\markdig\\0.44.0\\markdig.0.44.0.nupkg.sha512",
     "C:\\Users\\aadam\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.11\\microsoft.aspnetcore.openapi.9.0.11.nupkg.sha512",
     "C:\\Users\\aadam\\.nuget\\packages\\microsoft.extensions.ai.abstractions\\10.0.0\\microsoft.extensions.ai.abstractions.10.0.0.nupkg.sha512",
     "C:\\Users\\aadam\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.0\\microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",

@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
     /// <returns>Returns the <see cref="IServiceCollection"/> instance.</returns>
     public static IServiceCollection AddAppSettings(this IServiceCollection services, IConfiguration config, string[] args)
     {
-        services.AddAppSettings<MarkdownToHtmlAppSettings>(config, args);
+        services.AddAppSettings<KsefAppSettings>(config, args);
 
         services.AddSingleton<Regex>(sp =>
         {

@@ -2,19 +2,6 @@
   "version": 3,
   "targets": {
     "net9.0": {
-      "Markdig/0.44.0": {
-        "type": "package",
-        "compile": {
-          "lib/net9.0/Markdig.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net9.0/Markdig.dll": {
-            "related": ".xml"
-          }
-        }
-      },
       "Microsoft.AspNetCore.OpenApi/9.0.11": {
         "type": "package",
         "dependencies": {
@@ -385,29 +372,6 @@
     }
   },
   "libraries": {
-    "Markdig/0.44.0": {
-      "sha512": "X+CYMjcUnh/yO24wOSQxVFLiGqWrrtXJ5M7toHiM1Zk4Fg9UMLN5fkaq6FSOWH+mIprsHHgDMlq3MJhmrXalhg==",
-      "type": "package",
-      "path": "markdig/0.44.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "lib/net462/Markdig.dll",
-        "lib/net462/Markdig.xml",
-        "lib/net8.0/Markdig.dll",
-        "lib/net8.0/Markdig.xml",
-        "lib/net9.0/Markdig.dll",
-        "lib/net9.0/Markdig.xml",
-        "lib/netstandard2.0/Markdig.dll",
-        "lib/netstandard2.0/Markdig.xml",
-        "lib/netstandard2.1/Markdig.dll",
-        "lib/netstandard2.1/Markdig.xml",
-        "markdig.0.44.0.nupkg.sha512",
-        "markdig.nuspec",
-        "markdig.png",
-        "readme.md"
-      ]
-    },
     "Microsoft.AspNetCore.OpenApi/9.0.11": {
       "sha512": "rTa3lp6B8KM8AESIwLakTT6XaoUBTnjAZq2pRX6zS/BzQy6mOVUgaawRSyM0WHykHdwbfrEAmer3ys2xE4DVtg==",
       "type": "package",
@@ -1022,7 +986,6 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
-      "Markdig >= 0.*",
       "Shared >= 1.0.0"
     ]
   },
@@ -1032,11 +995,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\McpKsef.HybridApp\\McpKsef.HybridApp.csproj",
-      "projectName": "McpKsef.HybridApp",
-      "projectPath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\McpKsef.HybridApp\\McpKsef.HybridApp.csproj",
+      "projectUniqueName": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\Mcp-Ksef.HybridApp\\Mcp-Ksef.HybridApp.csproj",
+      "projectName": "Mcp-Ksef.HybridApp",
+      "projectPath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\Mcp-Ksef.HybridApp\\Mcp-Ksef.HybridApp.csproj",
       "packagesPath": "C:\\Users\\aadam\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\McpKsef.HybridApp\\obj\\",
+      "outputPath": "C:\\Users\\aadam\\RiderProjects\\Mcp-Ksef\\Mcp-Ksef.HybridApp\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\aadam\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -1073,12 +1036,6 @@
     "frameworks": {
       "net9.0": {
         "targetAlias": "net9.0",
-        "dependencies": {
-          "Markdig": {
-            "target": "Package",
-            "version": "[0.*, )"
-          }
-        },
         "imports": [
           "net461",
           "net462",

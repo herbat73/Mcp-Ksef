@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Shared</RootNamespace>
     <PackageId>Shared</PackageId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
