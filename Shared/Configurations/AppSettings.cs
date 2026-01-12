@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
 
@@ -109,7 +110,7 @@ public abstract class AppSettings
             return useHttp;
         }
 
-        useHttp = args.Contains("--http", StringComparer.InvariantCultureIgnoreCase);
+        useHttp = args.Contains("--http", System.StringComparer.InvariantCultureIgnoreCase);
 
         return useHttp;
     }

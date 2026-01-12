@@ -1,5 +1,7 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using McpKsef.HybridApp.Consts;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace McpKsef.HybridApp.Tools;

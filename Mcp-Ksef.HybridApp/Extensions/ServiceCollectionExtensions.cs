@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using McpKsef.HybridApp.Configurations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Shared.Extensions;
 
 namespace McpKsef.HybridApp.Extensions;
