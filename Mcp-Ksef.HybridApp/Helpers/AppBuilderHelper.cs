@@ -20,7 +20,9 @@ public static class AppBuilderHelper
             consoleLogOptions.TimestampFormat = "[yyyy-MM-dd HH:mm:ss UTC] ";
             consoleLogOptions.UseUtcTimestamp = true;
         });
-
+        
+        builder.Configuration.GetSection("Connection").Bind(builder.Configuration);
+        
         if (useStreamableHttp)
         {
             builder.Services.AddHttpContextAccessor();

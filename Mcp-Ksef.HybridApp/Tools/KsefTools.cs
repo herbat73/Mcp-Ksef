@@ -22,8 +22,9 @@ public class KsefTools
             _logger.LogError($"{AppConsts.KsefToolName}.{nameof(KsefTools)} environment variable {EnvironmentConsts.KsefToken} not set");
         }
     }
-
-    [McpServerTool, Description("Pobranie faktury po numerze referencyjnym")]
+    
+    [McpServerTool(Name = "get_invoice_by_reference", Title = "Pobierz fakturę po numerze referencyjnym")]
+    [Description("Pobiera fakturę po numerze referencyjnym")]
     public string GetInvoice([Description("Numer referencyjny ksef")] string ksefReferenceNumber)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called invoiceNumber: {ksefReferenceNumber}");
