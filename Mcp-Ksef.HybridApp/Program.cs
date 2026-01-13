@@ -1,7 +1,4 @@
-using System;
 using McpKsef.HybridApp.Configurations;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Hosting;
 using Shared.Configurations;
 using Shared.Extensions;
 
@@ -13,6 +10,15 @@ IHostApplicationBuilder builder = useStreamableHttp
 
 builder.Services.AddAppSettings<KsefAppSettings>(builder.Configuration, args);
 
-IHost app = builder.BuildApp(useStreamableHttp);
+builder.Logging.AddConsole(consoleLogOptions =>
+{
+    consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+    consoleLogOptions.TimestampFormat = "[yyyy-MM-dd HH:mm:ss UTC] ";
+    consoleLogOptions.UseUtcTimestamp = true;
+});
+
+var app = builder.BuildApp(useStreamableHttp);
 
 await app.RunAsync();
+
+

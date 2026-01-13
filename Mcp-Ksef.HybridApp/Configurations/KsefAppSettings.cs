@@ -1,6 +1,6 @@
 using Shared.Configurations;
 using Microsoft.OpenApi.Models;
-using McpKsef.HybridApp.Consts;
+using Shared.Consts;
 
 namespace McpKsef.HybridApp.Configurations;
 

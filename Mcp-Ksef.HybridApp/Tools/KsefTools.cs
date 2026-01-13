@@ -1,6 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
-using McpKsef.HybridApp.Consts;
+using Shared.Consts;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 

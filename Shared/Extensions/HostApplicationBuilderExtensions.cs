@@ -1,7 +1,9 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Shared.Consts;
 
 namespace Shared.Extensions;
 
@@ -18,7 +20,7 @@ public static class HostApplicationBuilderExtensions
     /// <returns>Returns the <see cref="IHost"/> instance.</returns>
     public static IHost BuildApp(this IHostApplicationBuilder builder, bool useStreamableHttp)
     {
-        if (useStreamableHttp == true)
+        if (useStreamableHttp)
         {
             builder.Services.AddMcpServer()
                             .WithHttpTransport(o => o.Stateless = true)
@@ -34,6 +36,21 @@ public static class HostApplicationBuilderExtensions
                 webApp.UseHttpsRedirection();
             }
 
+            webApp.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+            
+            webApp.MapGet("/info", () => Results.Json(new 
+            { 
+                name = AppConsts.AppName,
+                version = AppConsts.AppVersion,
+                transport = "streamable-http",
+                endpoints = new 
+                {
+                    mcp = "/mcp",
+                    health = "/health"
+                },
+                description = AppConsts.AppDescription
+            }));
+            
             webApp.MapMcp("/mcp");
 
             return webApp;

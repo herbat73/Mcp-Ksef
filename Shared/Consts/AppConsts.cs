@@ -1,4 +1,4 @@
-﻿namespace McpKsef.HybridApp.Consts;
+﻿namespace Shared.Consts;
 
 public static class AppConsts
 {
