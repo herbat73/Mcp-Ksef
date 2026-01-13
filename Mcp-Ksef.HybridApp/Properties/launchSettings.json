@@ -8,7 +8,8 @@
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5280",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "KSEF_TOKEN" : "my company ksef token"
       }
     },
     "https": {
