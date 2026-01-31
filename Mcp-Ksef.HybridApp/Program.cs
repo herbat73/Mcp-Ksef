@@ -1,7 +1,17 @@
+using KSeF.Client.Api.Services;
+using KSeF.Client.Api.Services.Internal;
+using KSeF.Client.Clients;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.DI;
 using Shared.Configurations;
 using Shared.Extensions;
 using McpKsef.HybridApp.Helpers;
+using Shared.Consts;
+
+if (!RunInfoHelper.IsSettingsValidToRun()) return;
+
+Console.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
 
 var useStreamableHttp = AppSettings.UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
 var builder = AppBuilderHelper.Setup(useStreamableHttp, args);
@@ -29,10 +39,17 @@ builder.Services.AddKSeFClient(options =>
 });
 builder.Services.AddCryptographyClient();
 
+builder.Services.AddSingleton<ICryptographyClient, CryptographyClient>();
+builder.Services.AddSingleton<ICertificateFetcher, DefaultCertificateFetcher>();
+builder.Services.AddSingleton<ICryptographyService, CryptographyService>();
+builder.Services.AddSingleton<CryptographyWarmupHostedService>();
+
 var app = builder.BuildApp(useStreamableHttp);
 
 using (var scope = app.Services.CreateScope())
 {
+    scope.ServiceProvider.GetRequiredService<CryptographyWarmupHostedService>()
+        .StartAsync(CancellationToken.None).GetAwaiter().GetResult();
 }
 
 if (useStreamableHttp)
