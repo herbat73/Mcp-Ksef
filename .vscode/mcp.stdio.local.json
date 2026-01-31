@@ -7,17 +7,18 @@
     }
   ],
   "servers": {
-    "markdown-to-html": {
+    "mcp-ksef": {
       "type": "stdio",
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "${input:consoleapp-project-path}",
-        "--",
-        "-tc",
-        "-p"
-      ]
+        "${input:consoleapp-project-path}"
+      ],
+      "env": {
+        "KSEF_TOKEN": "enter ksef token",
+        "KSEF_VATID": "enter vat id"
+      }
     }
   }
 }

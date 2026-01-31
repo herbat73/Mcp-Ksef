@@ -7,7 +7,7 @@
     }
   ],
   "servers": {
-    "markdown-to-html": {
+    "mcp-ksef": {
       "type": "http",
       "url": "https://${input:acaapp-server-fqdn}/mcp"
     }

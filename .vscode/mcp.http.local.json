@@ -1,6 +1,6 @@
 {
   "servers": {
-    "markdown-to-html": {
+    "mcp-ksef": {
       "type": "http",
       "url": "http://localhost:5280/mcp"
     }
