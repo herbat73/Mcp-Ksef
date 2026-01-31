@@ -1,12 +1,12 @@
-# MCP Server: Markdown to HTML
+# MCP KSeF Server
 
-This is an MCP server that converts markdown text to HTML.
+To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiania, przesyłania, otrzymywania i przechowywania faktur.
 
-## Install
+## Instalacja
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%7B%22name%22%3A%22markdown-to-html%22%2C%22gallery%22%3Afalse%2C%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22ghcr.io%2Fmicrosoft%2Fmcp-dotnet-samples%2Fmarkdown-to-html%3Alatest%22%5D%7D) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%7B%22name%22%3A%22markdown-to-html%22%2C%22gallery%22%3Afalse%2C%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22ghcr.io%2Fmicrosoft%2Fmcp-dotnet-samples%2Fmarkdown-to-html%3Alatest%22%5D%7D) [![Install in Visual Studio](https://img.shields.io/badge/Visual_Studio-Install-C16FDE?logo=visualstudio&logoColor=white)](https://aka.ms/vs/mcp-install?%7B%22name%22%3A%22markdown-to-html%22%2C%22gallery%22%3Afalse%2C%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22ghcr.io%2Fmicrosoft%2Fmcp-dotnet-samples%2Fmarkdown-to-html%3Alatest%22%5D%7D)
 
-## Prerequisites
+## Wymagania
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Visual Studio Code](https://code.visualstudio.com/) with
@@ -15,62 +15,35 @@ This is an MCP server that converts markdown text to HTML.
 - [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - [Docker Desktop](https://docs.docker.com/get-started/get-docker/)
 
-## What's Included
+## Co zawiera
 
 Markdown to HTML MCP server includes:
 
-| Building Block | Name                       | Description                         | Usage                       |
-|----------------|----------------------------|-------------------------------------|-----------------------------|
-| Tools          | `convert_markdown_to_html` | Converts markdown document to HTML. | `#convert_markdown_to_html` |
+| Building Block | Name                     | Description                                     | Usage                       |
+|----------------|--------------------------|-------------------------------------------------|-----------------------------|
+| Tools          | `get_invoice_by_ksef`    | Pobranie faktury w XML na podstawie numeru KSeF | `#get_invoice_by_ksef` |
 
-## Getting Started
+## Jak to użyć
 
-- [Getting repository root](#getting-repository-root)
-- [Running MCP server](#running-mcp-server)
-  - [On a local machine](#on-a-local-machine)
-  - [In a container](#in-a-container)
-  - [On Azure](#on-azure)
-- [Connect MCP server to an MCP host/client](#connect-mcp-server-to-an-mcp-hostclient)
-  - [VS Code + Agent Mode + Local MCP server](#vs-code--agent-mode--local-mcp-server)
+### Uruchamianie serwera MCP
 
-### Getting repository root
+#### Na maszynie lokalnej
 
-1. Get the repository root.
-
-    ```bash
-    # bash/zsh
-    REPOSITORY_ROOT=$(git rev-parse --show-toplevel)
-    ```
-
-    ```powershell
-    # PowerShell
-    $REPOSITORY_ROOT = git rev-parse --show-toplevel
-    ```
-
-### Running MCP server
-
-#### On a local machine
-
-1. Run the MCP server app.
+1. Uruchomienie serwera MCP.
 
     ```bash
     cd $REPOSITORY_ROOT/markdown-to-html
-    dotnet run --project ./src/McpSamples.MarkdownToHtml.HybridApp
+    dotnet run --project ./Mcp-Ksef.HybridApp
     ```
+   **Parametry**:
 
-   > Make sure take note the absolute directory path of the `McpSamples.MarkdownToHtml.HybridApp` project.
+   - `--http`: Przełącznik wskazujący, że serwer MCP ma działać jako serwer strumieniowy HTTP. Po dodaniu tego przełącznika adres URL serwera MCP będzie następujący: `http://localhost:5280`.
+   - `--use-ksef-production`: Przełącznik wskazujący czy należy użyć serwera produkcyjnego, domyślnie bez przełącznika MCP użyje serwera testowego.
 
-   **Parameters**:
-
-   - `--http`: The switch that indicates to run this MCP server as a streamable HTTP type. When this switch is added, the MCP server URL is `http://localhost:5280`.
-   - `--tech-community`/`-tc`: The switch that indicates to convert the markdown text to HTML specific to Microsoft Tech Community.
-   - `--extra-paragraph`/`-p`: The switch that indicates whether to put extra paragraph between the given HTML elements that is defined by the `--tags` argument.
-   - `--tags`: The comma delimited list of HTML tags that adds extra paragraph in between. Default value is `p,blockquote,h1,h2,h3,h4,h5,h6,ol,ul,dl`
-
-   With these parameters, you can run the MCP server like:
+   Z tymi parametrami możesz użyć serwera MCP jak:
 
    ```bash
-   dotnet run --project ./src/McpSamples.MarkdownToHtml.HybridApp -- --http -tc -p --tags "p,h1,h2,h3,ol,ul,dl"
+   dotnet run --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production
    ```
 
 #### In a container
@@ -79,7 +52,7 @@ Markdown to HTML MCP server includes:
 
     ```bash
     cd $REPOSITORY_ROOT
-    docker build -f Dockerfile.markdown-to-html -t markdown-to-html:latest .
+    docker build -f Dockerfile -t mcp-ksef:latest .
     ```
 
 1. Run the MCP server app in a container.
