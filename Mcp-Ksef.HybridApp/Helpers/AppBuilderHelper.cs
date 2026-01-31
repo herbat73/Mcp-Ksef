@@ -21,8 +21,6 @@ public static class AppBuilderHelper
             consoleLogOptions.UseUtcTimestamp = true;
         });
         
-        builder.Configuration.GetSection("Connection").Bind(builder.Configuration);
-        
         if (useStreamableHttp)
         {
             builder.Services.AddHttpContextAccessor();

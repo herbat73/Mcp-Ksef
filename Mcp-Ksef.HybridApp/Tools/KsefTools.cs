@@ -43,3 +43,4 @@ public class KsefTools
         return invoice;
     }
 }
+

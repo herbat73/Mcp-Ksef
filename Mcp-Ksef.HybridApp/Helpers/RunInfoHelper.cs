@@ -13,6 +13,13 @@ public static class RunInfoHelper
         {
             Console.WriteLine($"Environment setting {EnvironmentConsts.KsefToken} is not set. Add environment variable {EnvironmentConsts.KsefToken} with valid KSeF Token.");
         }
+        var vatId = Environment.GetEnvironmentVariable(EnvironmentConsts.VatId);
+        var isVatIdValid = !string.IsNullOrEmpty(vatId);
+        
+        if (!isVatIdValid)
+        {
+            Console.WriteLine($"Environment setting {EnvironmentConsts.VatId} is not set. Add environment variable {EnvironmentConsts.VatId} with valid VatId.");
+        }
         return isKsefTokenValid;
     }
 }

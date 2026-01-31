@@ -16,21 +16,4 @@ public class KsefAppSettings : AppSettings
         Version = AppConsts.AppVersion,
         Description = AppConsts.AppDescription
     };
-    
-    /// <inheritdoc />
-    protected override T ParseMore<T>(IConfiguration config, string[] args)
-    {
-        var settings = base.ParseMore<T>(config, args);
-
-        foreach (var arg in args)
-        {
-            switch (arg)
-            {
-                default:
-                    settings.Help = true;
-                    break;
-            }
-        }
-        return settings;
-    }
 }

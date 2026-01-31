@@ -4,21 +4,16 @@ using Shared.Extensions;
 using McpKsef.HybridApp.Helpers;
 using Shared.Consts;
 
-if (!RunInfoHelper.IsSettingsValidToRun()) return;
+//if (!RunInfoHelper.IsSettingsValidToRun()) return;
 
 var useStreamableHttp = AppSettings.UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
 var builder = AppBuilderHelper.Setup(useStreamableHttp, args);
 
 builder.Services.AddKSeFClient(options =>
 {
-    var ksefBaseUrl = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefBaseUrl);
-    if (string.IsNullOrEmpty(ksefBaseUrl))
-    {
-        Console.WriteLine($"Environment setting {EnvironmentConsts.KsefBaseUrl} is not set. Use default Test {KsefEnvironmentsUris.TEST} as base KSeF API url");
-        ksefBaseUrl = KsefEnvironmentsUris.TEST;
-    }
-    
-    options.BaseUrl = ksefBaseUrl;
+    var useProductionServer = AppSettings.UseProductionServer(Environment.GetEnvironmentVariables(), args);
+    options.BaseUrl = useProductionServer ? KsefEnvironmentsUris.PROD : KsefEnvironmentsUris.TEST;
+    Console.WriteLine($"useProductionServer : {useProductionServer} - KSeF API URL: {options.BaseUrl} used");
     
     options.CustomHeaders =
         builder.Configuration

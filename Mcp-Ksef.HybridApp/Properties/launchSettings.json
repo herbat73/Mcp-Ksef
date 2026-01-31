@@ -3,13 +3,12 @@
   "profiles": {
     "http": {
       "commandName": "Project",
-      "commandLineArgs": "--http --use-production",
+      "commandLineArgs": "--http",
       "dotnetRunMessages": true,
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5280",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "KSEF_TOKEN" : "my company ksef token"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
     "https": {

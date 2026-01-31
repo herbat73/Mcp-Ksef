@@ -1,6 +1,7 @@
 using System.Collections;
 using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
+using Shared.Consts;
 
 namespace Shared.Configurations;
 
@@ -13,6 +14,11 @@ public abstract class AppSettings
     /// Gets or sets a value indicating whether to use HTTP for the MCP server or not.
     /// </summary>
     public bool UseHttp { get; set; }
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether to use KSeF production server or not.
+    /// </summary>
+    public bool UseProduction { get; set; }
 
     /// <summary>
     /// Gets or sets the OpenAPI configuration for the MCP server.
@@ -83,7 +89,9 @@ public abstract class AppSettings
                 case "--http":
                     settings.UseHttp = true;
                     break;
-
+                case "--use-production":
+                    settings.UseProduction= true;
+                    break;
                 case "--help":
                 default:
                     settings.Help = true;
@@ -112,5 +120,21 @@ public abstract class AppSettings
         useHttp = args.Contains("--http", StringComparer.InvariantCultureIgnoreCase);
 
         return useHttp;
+    }
+    
+    /// <summary>
+    /// Checks whether to use Ksef production server or not.
+    /// </summary>
+    public static bool UseProductionServer(IDictionary env, string[] args)
+    {
+        var useProduction = env.Contains(EnvironmentConsts.UseKsefProduction) &&
+                      bool.TryParse(env[EnvironmentConsts.UseKsefProduction]?.ToString()?.ToLowerInvariant(), out var result) && result;
+        if (args.Length == 0)
+        {
+            return useProduction;
+        }
+
+        useProduction = args.Contains("--use-ksef-production", StringComparer.InvariantCultureIgnoreCase);
+        return useProduction;
     }
 }
