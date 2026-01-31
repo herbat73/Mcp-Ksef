@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using McpKsef.HybridApp.Configurations;
+using McpKsef.HybridApp.Helpers;
 using Shared.Consts;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
@@ -14,6 +15,7 @@ public class KsefTools
     private readonly string? _ksefToken;
     private readonly IConfiguration _configuration;
     //private readonly KsefAppSettings _ksefAppSettings;
+    private readonly bool _isSettingsValid;  
     
     //public KsefTools(KsefAppSettings ksefAppSettings, ILogger<KsefTools> logger)
     public KsefTools(IConfiguration configuration, ILogger<KsefTools> logger)
@@ -22,21 +24,18 @@ public class KsefTools
         _configuration = configuration;
         _logger = logger;
         _ksefToken = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
-
-        var connectionSettings = _configuration.GetSection("Connection");
         
-        //_logger.LogInformation($"UseProduction {ksefAppSettings.Connection.UseProduction}");
+        Console.WriteLine($"KsefToken: {_ksefToken}");
         
-        if (string.IsNullOrEmpty(_ksefToken))
-        {
-            _logger.LogError($"{AppConsts.KsefToolName}.{nameof(KsefTools)} environment variable {EnvironmentConsts.KsefToken} not set");
-        }
+        _isSettingsValid = RunInfoHelper.IsSettingsValidToRun();
     }
     
     [McpServerTool(Name = "get_invoice_by_reference", Title = "Pobierz fakturę po numerze referencyjnym")]
     [Description("Pobiera fakturę po numerze referencyjnym")]
     public string GetInvoice([Description("Numer referencyjny ksef")] string ksefReferenceNumber)
     {
+        if (_isSettingsValid) return string.Empty;
+        
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called invoiceNumber: {ksefReferenceNumber}");
         
         var invoice = $"yo {ksefReferenceNumber} ksefToken {_ksefToken}";

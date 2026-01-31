@@ -2,9 +2,6 @@ using KSeF.Client.DI;
 using Shared.Configurations;
 using Shared.Extensions;
 using McpKsef.HybridApp.Helpers;
-using Shared.Consts;
-
-//if (!RunInfoHelper.IsSettingsValidToRun()) return;
 
 var useStreamableHttp = AppSettings.UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
 var builder = AppBuilderHelper.Setup(useStreamableHttp, args);
