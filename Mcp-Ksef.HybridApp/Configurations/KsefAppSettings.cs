@@ -17,7 +17,7 @@ public class KsefAppSettings : AppSettings
         Description = AppConsts.AppDescription
     };
     
-    public ConnectionSettings Connection { get; set; } = new ConnectionSettings();
+    public ConnectionSettings Connection { get; set; } = new();
 
     /// <inheritdoc />
     protected override T ParseMore<T>(IConfiguration config, string[] args)

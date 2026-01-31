@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using McpKsef.HybridApp.Configurations;
 using Shared.Consts;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
@@ -10,13 +11,22 @@ namespace McpKsef.HybridApp.Tools;
 public class KsefTools
 {
     private readonly ILogger<KsefTools> _logger;
-    private  readonly string? _ksefToken;
+    private readonly string? _ksefToken;
+    private readonly IConfiguration _configuration;
+    //private readonly KsefAppSettings _ksefAppSettings;
     
-    public KsefTools(ILogger<KsefTools> logger)
+    //public KsefTools(KsefAppSettings ksefAppSettings, ILogger<KsefTools> logger)
+    public KsefTools(IConfiguration configuration, ILogger<KsefTools> logger)
     {
+      //  _ksefAppSettings =  ksefAppSettings;
+        _configuration = configuration;
         _logger = logger;
         _ksefToken = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
 
+        var connectionSettings = _configuration.GetSection("Connection");
+        
+        //_logger.LogInformation($"UseProduction {ksefAppSettings.Connection.UseProduction}");
+        
         if (string.IsNullOrEmpty(_ksefToken))
         {
             _logger.LogError($"{AppConsts.KsefToolName}.{nameof(KsefTools)} environment variable {EnvironmentConsts.KsefToken} not set");
