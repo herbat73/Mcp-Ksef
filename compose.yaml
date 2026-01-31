@@ -1,0 +1,12 @@
+﻿services:
+  mcpksef:
+    image: mcpksef.hybridapp
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-ksef-container
+    ports:
+      - 8080:8080
+    environment:
+      - KSEF_TOKEN="test my ksef token"
+      - KSEF_VATID="my vat id"
