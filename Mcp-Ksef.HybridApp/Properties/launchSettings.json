@@ -9,17 +9,20 @@
       "applicationUrl": "http://localhost:5280",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "KSEF_TOKEN" : "20251204-EC-2734530000-68CCC8CEE0-EB|nip-5242764991|25f24298640b486e8bc7ba26f3ddb888dfe4df8fa44d4f8fbd245c3e5c36eb83",
-        "KSEF_VATID" : "5242764991"
+        "KSEF_TOKEN" : "",
+        "KSEF_VATID" : ""
       }
     },
     "https": {
       "commandName": "Project",
+      "commandLineArgs": "--http",
       "dotnetRunMessages": true,
       "launchBrowser": false,
       "applicationUrl": "https://localhost:45280;http://localhost:5280",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "KSEF_TOKEN" : "",
+        "KSEF_VATID" : ""
       }
     }
   }
