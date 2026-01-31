@@ -31,14 +31,14 @@ public class KsefTools : IKsefTools
         _ksefClient = ksefClient;
     }
     
-    [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze referencyjnym ksef")]
-    [Description("Pobiera fakturę po numerze referencyjnym ksef")]
-    public async Task<string> GetInvoice([Description("Numer referencyjnym ksef")] string ksefReferenceNumber)
+    [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze ksef")]
+    [Description("Pobiera fakturę po numerze ksef")]
+    public async Task<string> GetInvoice([Description("Numer ksef")] string ksefNumber)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefReferenceNumber: {ksefReferenceNumber}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
         await VerifyAuthToken();
         
-        var invoice = await _ksefClient.GetInvoiceAsync(ksefReferenceNumber, _authToken);
+        var invoice = await _ksefClient.GetInvoiceAsync(ksefNumber, _authToken);
         
         return invoice;
     }
