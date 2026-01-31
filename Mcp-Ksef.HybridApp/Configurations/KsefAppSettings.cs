@@ -17,8 +17,6 @@ public class KsefAppSettings : AppSettings
         Description = AppConsts.AppDescription
     };
     
-    public ConnectionSettings Connection { get; set; } = new();
-
     /// <inheritdoc />
     protected override T ParseMore<T>(IConfiguration config, string[] args)
     {
@@ -28,9 +26,6 @@ public class KsefAppSettings : AppSettings
         {
             switch (arg)
             {
-                case "--use-production":
-                    (settings as KsefAppSettings)!.Connection.UseProduction = true;
-                    break;
                 default:
                     settings.Help = true;
                     break;
@@ -38,9 +33,4 @@ public class KsefAppSettings : AppSettings
         }
         return settings;
     }
-}
-
-public class ConnectionSettings
-{
-    public bool UseProduction { get; set; }
 }
