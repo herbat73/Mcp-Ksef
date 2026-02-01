@@ -48,5 +48,5 @@ Markdown to HTML MCP server includes:
    Z tymi parametrami możesz użyć serwera MCP jak:
 
    ```bash
-   dotnet run --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production
+   dotnet run --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy'
    ```
