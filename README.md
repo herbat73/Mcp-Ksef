@@ -45,13 +45,13 @@ Markdown to HTML MCP server includes:
    - `KSEF_TOKEN`: - token KSeF wygenerowany w systemie KsEF (dla wybranego systemu Test lub Produkcja).
    - `KSEF_VATID`: - NIP firmy dla której chcesz użyć systemu KsEF
 
-   Z tymi parametrami możesz użyć serwera MCP jak:
+   Z tymi parametrami możesz użyć serwera MCP w trybie HTTP strumieniowym z dostępem do systemu produkcyjnego (https://api.ksef.mf.gov.pl) jak:
 
    ```bash
   dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production 
    ```
 
-Serwer uchomi sie domyślnie na porcie 5280
+Serwer uruchomi się domyślnie nasłuchując na porcie 5280
 
 ```bash
 Starting MCP KSeF for VatId : Tutaj NIP firmy
@@ -60,4 +60,38 @@ useProductionServer : True - KSeF API URL: https://api.ksef.mf.gov.pl used
 Now listening on: http://localhost:5280
 ```
 
+Podobnie uruchomienie w trybie transportowym STDIO (--http) np. systemu testowego (nie wymaga parametru --use-ksef-production)
+
+   ```bash
+  dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp
+   ```
+
+Pozwoli na dostęp do KSeF API (https://api-test.ksef.mf.gov.pl)
+
 Zatrzymanie serwera Ctrl-C
+
+### Test z NCP Inspector
+
+1. Uruchom projekt do dowolnego środowiska np. test dla HTTP stumieniowy
+
+   ```bash
+    dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http
+   ```
+
+   2. Uruchom klienta MCP np. Visual Studio Code, konfiguracja mcp.json
+
+```json
+{
+   "servers": {
+      "my-mcp-ksef-http": {
+         "type": "http",
+         "url": "http://localhost:5280/mcp"
+      }
+   },
+   "inputs": []
+}
+```
+3. Podłącz się do serwera MCP-KSEF który uruchomiłeś
+
+
+
