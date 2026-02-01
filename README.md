@@ -28,15 +28,15 @@ Markdown to HTML MCP server includes:
 
 1. Uruchomienie serwera MCP.
 
-    ```bash
-    cd $REPOSITORY_ROOT/Mcp-Ksef.HybridApp
-    dotnet run --project ./Mcp-Ksef.HybridApp
-    ```
+ ```bash
+ cd $REPOSITORY_ROOT/Mcp-Ksef.HybridApp
+ dotnet run --project ./Mcp-Ksef.HybridApp
+ ```
+
    **Parametry**:
 
    - `--http`: Przełącznik wskazujący, że serwer MCP ma działać jako serwer strumieniowy HTTP. Po dodaniu tego przełącznika adres URL serwera MCP będzie następujący: `http://localhost:5280`.
    - `--use-ksef-production`: Przełącznik wskazujący czy należy użyć serwera produkcyjnego, domyślnie bez przełącznika MCP użyje serwera testowego.
-
 
    **Zmienne środowiskowe**:
    
@@ -47,9 +47,9 @@ Markdown to HTML MCP server includes:
 
    Z tymi parametrami możesz użyć serwera MCP w trybie HTTP strumieniowym z dostępem do systemu produkcyjnego (https://api.ksef.mf.gov.pl) jak:
 
-   ```bash
-  dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production 
-   ```
+```bash
+dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production 
+```
 
 Serwer uruchomi się domyślnie nasłuchując na porcie 5280
 
@@ -62,9 +62,9 @@ Now listening on: http://localhost:5280
 
 Podobnie uruchomienie w trybie transportowym STDIO (--http) np. systemu testowego (nie wymaga parametru --use-ksef-production)
 
-   ```bash
-  dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp
-   ```
+```bash
+dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp
+```
 
 Pozwoli na dostęp do KSeF API (https://api-test.ksef.mf.gov.pl)
 
@@ -74,9 +74,9 @@ Zatrzymanie serwera Ctrl-C
 
 1. Uruchom projekt do dowolnego środowiska np. test dla transportu HTTP strumieniowy
 
-   ```bash
-    dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http
-   ```
+```bash
+ dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http
+```
 
 2. Uruchom klienta MCP np. Visual Studio Code, konfiguracja mcp.json
 
@@ -93,17 +93,17 @@ Zatrzymanie serwera Ctrl-C
 ```
 3. Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w systemie masz fakturę referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
 
-![img_2.png](Images/img_2.png)
+![KSEF Reference](./Images/img_2.png)
 
 Wpisz komendę w Chat np.
 
 `Pobierz fakturę o numerze referencyjnym 5242764991-20260131-01002063FA88-AD i pokaż dane identyfkacyjne podmiotu2 oraz number faktury`
 
-![img.png](Images/img.png)
+![MCP command](./Images/img.png)
 
 Udziel zezwolenia do użycia i przekazania parametrów
 
-![img_1.png](Images/img_1.png)
+![MCP Allow](./Images/img_1.png)
 
 MCP połączy się z sytemem KSeF, użyje podanych danych autoruzacyjnych (token KSeF oraz NIP) i pobierze dane faktury
 
