@@ -91,23 +91,28 @@ Zatrzymanie serwera Ctrl-C
    "inputs": []
 }
 ```
-3. Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w systemie masz fakturę referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
 
-![KSEF Reference](./Images/img_2.png)
+3. Na przykład załóżmy, że masz w systemie KSeF fakturę o numerze referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
+
+![KSEF Reference](Images/faktura_referencyjna_ksef.png)
+
+3. Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w 
 
 Wpisz komendę w Chat np.
 
-`Pobierz fakturę o numerze referencyjnym 5242764991-20260131-01002063FA88-AD i pokaż dane identyfkacyjne podmiotu2 oraz number faktury`
+```bash
+Pobierz fakturę o numerze referencyjnym 5242764991-20260131-01002063FA88-AD i pokaż dane identyfkacyjne podmiotu2 oraz number faktury
+```
 
-![MCP command](./Images/img.png)
+![MCP command](Images/chatgpt_command.png)
 
 Udziel zezwolenia do użycia i przekazania parametrów
 
-![MCP Allow](./Images/img_1.png)
+![MCP Allow](Images/mcp_allow.png)
 
-MCP połączy się z sytemem KSeF, użyje podanych danych autoruzacyjnych (token KSeF oraz NIP) i pobierze dane faktury
+MCP połączy się z systemem KSeF, użyje podanych danych autoryzacyjnych (wygenerowany token KSeF oraz NIP) i pobierze dane faktury
 
-![img_3.png](Images/img_3.png)
+![MCP respult KSeF](Images/mcp_result_ksef.png)
 
 
 
