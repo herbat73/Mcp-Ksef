@@ -48,5 +48,16 @@ Markdown to HTML MCP server includes:
    Z tymi parametrami możesz użyć serwera MCP jak:
 
    ```bash
-   dotnet run --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy'
+  dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http --use-ksef-production 
    ```
+
+Serwer uchomi sie domyślnie na porcie 5280
+
+```bash
+Starting MCP KSeF for VatId : Tutaj NIP firmy
+useProductionServer : True - KSeF API URL: https://api.ksef.mf.gov.pl used
+...
+Now listening on: http://localhost:5280
+```
+
+Zatrzymanie serwera Ctrl-C
