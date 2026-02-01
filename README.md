@@ -70,15 +70,15 @@ Pozwoli na dostęp do KSeF API (https://api-test.ksef.mf.gov.pl)
 
 Zatrzymanie serwera Ctrl-C
 
-### Test z NCP Inspector
+### Test
 
-1. Uruchom projekt do dowolnego środowiska np. test dla HTTP stumieniowy
+1. Uruchom projekt do dowolnego środowiska np. test dla transportu HTTP strumieniowy
 
    ```bash
     dotnet run -e KSEF_TOKEN='tutaj wklej token ksef' -e KSEF_VATID='Tutaj NIP firmy' --project ./Mcp-Ksef.HybridApp -- --http
    ```
 
-   2. Uruchom klienta MCP np. Visual Studio Code, konfiguracja mcp.json
+2. Uruchom klienta MCP np. Visual Studio Code, konfiguracja mcp.json
 
 ```json
 {
@@ -91,7 +91,25 @@ Zatrzymanie serwera Ctrl-C
    "inputs": []
 }
 ```
-3. Podłącz się do serwera MCP-KSEF który uruchomiłeś
+3. Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w systemie masz fakturę referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
+
+![img_2.png](Images/img_2.png)
+
+Wpisz komendę w Chat np.
+
+`Pobierz fakturę o numerze referencyjnym 5242764991-20260131-01002063FA88-AD i pokaż dane identyfkacyjne podmiotu2 oraz number faktury`
+
+![img.png](Images/img.png)
+
+Udziel zezwolenia do użycia i przekazania parametrów
+
+![img_1.png](Images/img_1.png)
+
+MCP połączy się z sytemem KSeF, użyje podanych danych autoruzacyjnych (token KSeF oraz NIP) i pobierze dane faktury
+
+![img_3.png](Images/img_3.png)
+
+
 
 
 
