@@ -32,7 +32,7 @@ Markdown to HTML MCP server includes:
 2. Uruchomienie
 
 ```bash
-docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:0.1 --http
+docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:latest --http
 ```
 
 2. Przykładowa konfiguracja klienta jako plik mcp.json
@@ -168,7 +168,7 @@ MCP połączy się z systemem KSeF, użyje podanych danych autoryzacyjnych (wyge
 2. Pobranie listy faktur z podanego okresu
 
 ```bash
-Pobierz fakrury podanego okresu od 2026.01.01 do 2026.02.01
+Pobierz faktury z podanego okresu od 2026.01.01 do 2026.02.01
 ```
 ![MCP command](Images/pobierz_faktury_za_okres.png)
 
