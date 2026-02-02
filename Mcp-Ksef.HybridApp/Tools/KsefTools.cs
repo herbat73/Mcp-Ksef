@@ -43,27 +43,6 @@ public class KsefTools : IKsefTools
         return invoice;
     }
     
-    // private async Task<InvoiceSummary> GetInvoiceSummary(string ksefReferenceNumber, DateTime invoiceDate)
-    // {
-    //     var invoiceMetadataQueryRequest = new InvoiceQueryFilters
-    //     {
-    //         KsefNumber = ksefReferenceNumber,
-    //         DateRange = new DateRange
-    //         {
-    //             From = invoiceDate.AddMinutes(-10),
-    //             To = invoiceDate.AddMinutes(10),
-    //             DateType = DateType.Issue
-    //         }
-    //     };
-    //         
-    //     var metadata = await _ksefClient.QueryInvoiceMetadataAsync(
-    //         requestPayload: invoiceMetadataQueryRequest,
-    //         accessToken: _authToken);
-    //     
-    //     var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefReferenceNumber);
-    //     return invoiceMetadata;
-    // }
-    
     private async Task<string> GetAccessTokenAsync(string nip, string ksefToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenAsync)} called nip: {nip}");
