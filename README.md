@@ -18,9 +18,10 @@ To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiani
 
 Markdown to HTML MCP server includes:
 
-| Building Block | Name                     | Description                                     | Usage                       |
-|----------------|--------------------------|-------------------------------------------------|-----------------------------|
-| Tools          | `get_invoice_by_ksef`    | Pobranie faktury w XML na podstawie numeru KSeF | `#get_invoice_by_ksef` |
+| Building Block | Name                     | Opis                                                  | Uzycie                 |
+|----------------|--------------------------|-------------------------------------------------------|------------------------|
+| Tools          | `get_invoice_by_ksef`    | Pobranie faktury w XML na podstawie numeru KSeF       | `#get_invoice_by_ksef` |
+| Tools          | `get_invoices_for_period`| Pobiera listę faktur z podanego okresu z systemu ksef | `#get_invoices_for_period` |
 
 ## Jak to użyć
 
@@ -138,11 +139,15 @@ Zatrzymanie serwera Ctrl-C
 }
 ```
 
-3. Na przykład załóżmy, że masz w systemie KSeF fakturę o numerze referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
+### Przykłady
+
+1. Pobranie po numerze referencyjnym KSeF
+
+Na przykład załóżmy, że masz w systemie KSeF fakturę o numerze referencyjnym KSeF 5242764991-20260131-01002063FA88-AD
 
 ![KSEF Reference](Images/faktura_referencyjna_ksef.png)
 
-3. Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w 
+Podłącz się do serwera MCP-KSEF, który uruchomiłeś a w 
 
 Wpisz komendę w Chat np.
 
@@ -160,7 +165,10 @@ MCP połączy się z systemem KSeF, użyje podanych danych autoryzacyjnych (wyge
 
 ![MCP respult KSeF](Images/mcp_result_ksef.png)
 
+2. Pobranie listy faktur z podanego okresu
 
-
-
+```bash
+Pobierz fakrury podanego okresu od 2026.01.01 do 2026.02.01
+```
+![MCP command](Images/pobierz_faktury_za_okres.png)
 
