@@ -24,6 +24,30 @@ Markdown to HTML MCP server includes:
 
 ## Jak to użyć
 
+### Docker image
+
+1. Image docker jest gotowy do ściągnięcia i instalacji w dockerhub jako [herbat73/mcp-ksef](https://hub.docker.com/repository/docker/herbat73/mcp-ksef/)
+
+2. Uruchomienie
+
+```bash
+docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:0.1 --http
+```
+
+2. Przykładowa konfiguracja klienta jako plik mcp.json
+
+```json
+{
+  "servers": {
+    "my-mcp-ksef-stdio": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
+    }
+  },
+  "inputs": []
+}
+```
+
 ### Budowanie
 
 Przy budowaniu programu potrzebujesz ściągnąć nuget z KSeF Clientem który dostępny jest tylko na GitHub Packages.
