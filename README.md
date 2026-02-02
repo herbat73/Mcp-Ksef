@@ -24,7 +24,7 @@ Markdown to HTML MCP server includes:
 
 ## Jak to użyć
 
-**Budowanie**
+### Budowanie
 
 Przy budowaniu programu potrzebujesz ściągnąć nuget z KSeF Clientem który dostępny jest tylko na GitHub Packages.
 
@@ -39,6 +39,10 @@ GitHub -> Settings -> Developer settings -> Personal access tokens -> Tokens (cl
 W sekcji Wybierz zakresy zaznacz read:packages, a następnie wygeneruj i skopiuj wartość tokena (będzie widoczna tylko raz).
 
 ![GitHubPat token](./Images/GitHubPAT.jpg)
+
+```bash
+dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" --name github-cirf --username token --password TUTAJ_PAT_TOKEN --store-password-in-clear-text
+```
 
 ### Uruchamianie serwera MCP
 
