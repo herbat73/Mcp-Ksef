@@ -26,7 +26,7 @@ Markdown to HTML MCP server includes:
 
 ### Docker image
 
-1. Image docker jest gotowy do ściągnięcia i instalacji w dockerhub jako [herbat73/mcp-ksef](https://hub.docker.com/repository/docker/herbat73/mcp-ksef/)
+1. Image docker jest gotowy do ściągnięcia i instalacji w publiczny repozytorium Docker Hub jako [herbat73/mcp-ksef](https://hub.docker.com/repository/docker/herbat73/mcp-ksef/)
 
 2. Uruchomienie
 
@@ -39,7 +39,7 @@ docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz num
 ```json
 {
   "servers": {
-    "my-mcp-ksef-stdio": {
+    "my-mcp-ksef": {
       "type": "http",
       "url": "http://localhost:8080/mcp"
     }
