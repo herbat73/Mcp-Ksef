@@ -1,4 +1,4 @@
-### Docker image
+## Uruchomienie jako Docker
 
 1. Image Docker jest gotowy do ściągnięcia i instalacji w publiczny repozytorium Docker Hub jako [herbat73/mcp-ksef](https://hub.docker.com/repository/docker/herbat73/mcp-ksef/)
 
@@ -20,10 +20,11 @@ docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz num
 docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:latest --http --use-ksef-production 
 ```
 
-**Parametry**
+### Parametry
 
-KSEF_TOKEN - wygenerowany token z systemu KSEF dla swojej organizacji
-KSEF_VATID - numer NIP w formacie bez spacji, prefiksu i znakow formatujących
+**KSEF_TOKEN** - wygenerowany token z systemu KSEF dla swojej organizacji
+
+**KSEF_VATID** - numer NIP w formacie bez spacji, prefiksu i znakow formatujących
 
 **Przełączniki**
 
