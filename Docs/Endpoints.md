@@ -13,4 +13,8 @@
 
 - /mcp - właściwy endpoint dla komend MCP 
 
+- /swagger.json - definicja swagger 2.0
+
+- /openapi.json - definicja OpenApi 3.0
+
 [Powrót do początku](../README.md)
