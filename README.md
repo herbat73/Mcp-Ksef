@@ -7,7 +7,8 @@ To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiani
 Spis treści
 
 * [Jak uruchomić jako Docker](Docs/RunAsDocker.md)
-* [Jak uruchomić klienta](Docs/HowToRun.md)
+* [Jak uruchomić klienta Visual Studio Code](Docs/HowToRun.md)
+* [Jak uruchomić klienta Cloud Desktop](Docs/HowToRunCloudDesktop.md)
 * [Przykłady użycia](Docs/Examples.md)
 * [Punkty dostępu](Docs/Endpoints.md)
 * [Instalacja z kodu](Docs/Installation.md)

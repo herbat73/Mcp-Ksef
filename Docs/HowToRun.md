@@ -10,7 +10,7 @@ Domyślnie uruchomienie serwera jako konyner Docker będzie nasłuchiwał na por
 docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:latest --http --use-ksef-production 
 ```
 
-Uruchom klienta MCP np. Visual Studio Code, konfiguracja mcp.json
+Uruchom klienta MCP Visual Studio Code, konfiguracja mcp.json
 
 ```json
 {
