@@ -1,16 +1,16 @@
 ## Jak skonfigurować klienta Cloud Desktop
 
-Przykład konfiguracji dla [Cloud Desktop](https://claude.com/download)
+1. Zainstaluj Cloud Deskop [Cloud Desktop](https://claude.com/download)
 
-Uruchom klienta Cloud Desktop i przejdź do ustawień (Settings).
+2. Uruchom klienta Cloud Desktop, zaloguj się i przejdź do ustawień (Settings).
 
 ![Cloud Desktop](../Images/CloudDesktopSettings.png)
 
-Kliknij na ustawienia dewelopera (Developer)
+3. Kliknij na ustawienia dewelopera (Developer)
 
 ![Cloud Desktop](../Images/CloudDesktopSettingsEditConfig.png)
 
-Następnie zmień plik konfiguracji claude_desktop_config.json na
+4. Następnie zmień plik konfiguracji claude_desktop_config.json na
 
 
 ```json
@@ -26,9 +26,9 @@ Następnie zmień plik konfiguracji claude_desktop_config.json na
 
 zakładając ze uruchomiłeś MCP na porcie 5280 (lub jako Docker na 8080 zmieniając wartość).
 
-Zamknikj Cloud Desktop i uruchom ponownie.
+5. Zamknij (exit) Cloud Desktop i uruchom ponownie.
 
-Cloud Desktop powinen mieć możliwość współpracy z MCP i KsEF.
+6. Po ponowym uruchomienu Cloud Desktop powinen mieć możliwość współpracy z MCP i KsEF.
 
 Wpisz np. 
 
@@ -43,7 +43,7 @@ Cloud powinien pobrać faktury.
 Zawuważ, źe Cloud Desktop trzyma kontekst i możes dalej danymi faktur robić co chcesz np.
 
 `
-Pobierz faktury z podanego okresu od 2026.01.01 do 2026.02.01
+Podsumuj faktury za podany okres
 `
 
 ![Cloud Desktop](../Images/CloudDesktop_Podsumuj_Faktury.png)
