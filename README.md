@@ -17,7 +17,12 @@ Spis treści
 
 Instrukcje dla KSeF
 
-| Building Block | Name                     | Opis                                                  | Uzycie                 |
-|----------------|--------------------------|-------------------------------------------------------|------------------------|
-| Tools          | `get_invoice_by_ksef`    | Pobranie faktury w XML na podstawie numeru KSeF       | `#get_invoice_by_ksef` |
-| Tools          | `get_invoices_for_period`| Pobiera listę faktur z podanego okresu z systemu ksef | `#get_invoices_for_period` |
+| Opis                                                                                 | Uzycie                 |
+|--------------------------------------------------------------------------------------|------------------------|
+| Pobranie faktury w XML na podstawie numeru KSeF                                      | `#get_invoice_by_ksef` |
+| Pobiera listę faktur z podanego okresu z systemu ksef                                | `#get_invoices_for_period` |
+| Pobiera fakturę o podanym numerze faktury (*)                                        | `#get_invoice_by_invoice_number` |
+| Pobierz faktury dla kupującego o numerze NIP (*)    | `#get_invoices_for_buyer_by_nip` |
+| Pobierz faktury dla kupującego o numerze VAT UE (*) | `#get_invoices_for_buyer_by_vateu` |
+
+(*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz

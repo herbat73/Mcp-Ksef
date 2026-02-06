@@ -67,6 +67,79 @@ public class KsefTools : IKsefTools
         return invoiceList;
     }
     
+    [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
+    [Description("Pobiera fakturę wg numeru faktury")]
+    public async Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury")] string invoiceNumber)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber}");
+        await VerifyAuthToken();
+        
+        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
+        {
+            InvoiceNumber = invoiceNumber,
+            DateRange = GetMaxDataRange()
+        };
+        
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken);
+        return invoiceList;
+    }
+    
+    [McpServerTool(Name = "get_invoices_for_buyer_by_nip", Title = "Pobierz faktury dla kupującego o numerze NIP")]
+    [Description("Pobiera faktury dla kupującego o podanym NIP")]
+    public async Task<PagedInvoiceResponse> GetInvoiceByBuyerNip([Description("Numer nip kupujacego")] string nip)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip}");
+        await VerifyAuthToken();
+
+        var buyerIdentifier = new BuyerIdentifier
+        {
+            Type = BuyerIdentifierType.Nip,
+            Value = nip
+        };
+
+        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
+        {
+            BuyerIdentifier = buyerIdentifier,
+            DateRange = GetMaxDataRange()
+        };
+        
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken);
+        return invoiceList;
+    }
+    
+    [McpServerTool(Name = "get_invoices_for_buyer_by_vateu", Title = "Pobierz faktury dla kupującego o numerze VAT UE")]
+    [Description("Pobiera faktury dla kupującego o podanym VAT UE")]
+    public async Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer vat eu kupujacego")] string vatUe)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called nip: {vatUe}");
+        await VerifyAuthToken();
+
+        var buyerIdentifier = new BuyerIdentifier
+        {
+            Type = BuyerIdentifierType.VatUe,
+            Value = vatUe
+        };
+
+        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
+        {
+            BuyerIdentifier = buyerIdentifier,
+            DateRange = GetMaxDataRange()
+        };
+        
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken);
+        return invoiceList;
+    }
+
+    private static DateRange GetMaxDataRange()
+    {
+        return new DateRange
+        {
+            From = DateTime.UtcNow.AddMonths(-3).AddMinutes(1),
+            To = DateTime.UtcNow,
+            DateType = DateType.Issue
+        };
+    }
+    
     private async Task<string> GetAccessTokenAsync(string nip, string ksefToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenAsync)} called nip: {nip}");

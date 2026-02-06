@@ -8,4 +8,7 @@ public interface IKsefTools
     Task<PagedInvoiceResponse> GetInvoicesListForGivenDate(
         DateTime dataFakturyOd,
         DateTime dataFakturyDo);
+    Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber);
+    Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip);
+    Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe);
 }
