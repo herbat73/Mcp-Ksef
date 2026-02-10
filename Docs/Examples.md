@@ -31,5 +31,17 @@ Pobierz faktury z podanego okresu od 2026.01.01 do 2026.02.01
 ```
 ![MCP command](../Images/pobierz_faktury_za_okres.png)
 
+### Pobierz link do faktury po numerze ksef 
+
+Wpisz komendę w Chat np.
+
+```bash
+Pobierz link do faktury po numerze ksef #get_invoice_url_by_ksef 5242764991-20260131-01002063FA88-AD
+```
+![MCP command](../Images/pobierz_link_do_fakury_ksef.png)
+
+Dostaniesz link do faktury, otwierając przejdziesz na stronę z możliwością pobrania
+
+![MCP command](../Images/dostep_do_faktur.png)
 
 [Powrót do początku](../README.md)

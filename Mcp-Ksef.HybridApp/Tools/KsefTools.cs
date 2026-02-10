@@ -20,8 +20,10 @@ public class KsefTools : IKsefTools
     private readonly IAuthorizationClient _authorizationClient;
     private readonly ICryptographyService _cryptographyService;
     private readonly IKSeFClient _ksefClient;
+    private readonly IVerificationLinkService _verificationLinkService;
+
     
-    public KsefTools(ILogger<KsefTools> logger, IAuthorizationClient authorizationClient, ICryptographyService cryptographyService, IKSeFClient ksefClient)
+    public KsefTools(ILogger<KsefTools> logger, IAuthorizationClient authorizationClient, ICryptographyService cryptographyService, IKSeFClient ksefClient, IVerificationLinkService  verificationLinkService)
     {
         _logger = logger;
         _ksefToken = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
@@ -29,6 +31,7 @@ public class KsefTools : IKsefTools
         _authorizationClient =  authorizationClient;
         _cryptographyService =  cryptographyService;
         _ksefClient = ksefClient;
+        _verificationLinkService =  verificationLinkService;
     }
     
     [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze ksef")]
@@ -128,6 +131,32 @@ public class KsefTools : IKsefTools
         
         var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken);
         return invoiceList;
+    }
+    
+    [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
+    [Description("Zwraca link do faktury po numerze ksef")]
+    public async Task<string> GetInvoiceUrl([Description("Numer ksef")] string ksefNumber)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber}");
+        await VerifyAuthToken();
+        
+        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
+        {
+            KsefNumber = ksefNumber,
+            DateRange = GetMaxDataRange()
+        };
+        
+        var metadata = await _ksefClient.QueryInvoiceMetadataAsync(
+                    requestPayload: invoiceMetadataQueryRequest,
+                    accessToken: _authToken);
+        
+        var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
+        var invoiceHash = invoiceMetadata.InvoiceHash;
+        var invoicingDate = invoiceMetadata.InvoicingDate;
+        
+        var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(_vatId, invoicingDate.DateTime, invoiceHash);
+        
+        return invoiceForOnlineUrl;
     }
 
     private static DateRange GetMaxDataRange()

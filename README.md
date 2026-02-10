@@ -24,5 +24,6 @@ Instrukcje dla KSeF
 | Pobiera fakturę o podanym numerze faktury (*)                                        | `#get_invoice_by_invoice_number` |
 | Pobierz faktury dla kupującego o numerze NIP (*)    | `#get_invoices_for_buyer_by_nip` |
 | Pobierz faktury dla kupującego o numerze VAT UE (*) | `#get_invoices_for_buyer_by_vateu` |
+| Pobierz link do faktury po numerze ksef | `#get_invoice_url_by_ksef` |
 
 (*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz

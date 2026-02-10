@@ -11,4 +11,5 @@ public interface IKsefTools
     Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber);
     Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip);
     Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe);
+    Task<string> GetInvoiceUrl(string ksefNumber);
 }
