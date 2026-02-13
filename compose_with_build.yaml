@@ -1,10 +1,15 @@
 ﻿services:
   mcpksef:
-    image: herbat73/mcp-ksef:latest
+    image: mcpksef
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PAT_TOKEN: TUTAJ_PAT_TOKEN
     container_name: mcp-ksef-container
+    command: --http --use-ksef-production
     ports:
       - 8080:8080
-    command: --http --use-ksef-production
     environment:
       - KSEF_TOKEN="test my ksef token"
       - KSEF_VATID="my vat id"
