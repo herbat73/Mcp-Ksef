@@ -4,6 +4,8 @@
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PAT_TOKEN: TUTAJ_PAT_TOKEN
     container_name: mcp-ksef-container
     ports:
       - 8080:8080

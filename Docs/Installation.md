@@ -76,4 +76,13 @@ Pozwoli na dostęp do KSeF API systemu testowego (https://api-test.ksef.mf.gov.p
 
 Zatrzymanie serwera Ctrl-C
 
+### Budowanie z dockerfile
+
+```bash
+docker build --build-arg PAT_TOKEN=TUTAJ_PAT_TOKEN . -t mcp-ksef
+```
+
+gdzie
+TUTAJ_PAT_TOKEN = to twój GitHub token pobrany z GitHub jak we sekcji Budowanie
+
 [Powrót do początku](../README.md)

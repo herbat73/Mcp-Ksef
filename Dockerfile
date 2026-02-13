@@ -1,9 +1,8 @@
-# syntax=docker/dockerfile:1
-
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 
-# Add NuGet server here
-RUN dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" --name github-cirf --username token --password TUTAJ_PAT_TOKEN --store-password-in-clear-text
+ARG PAT_TOKEN
+# Add Cirf NuGet server here
+RUN dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" --name github-cirf --username token --password ${PAT_TOKEN} --store-password-in-clear-text
 
 COPY ./Shared /source/Shared
 COPY ./Mcp-Ksef.HybridApp /source/Mcp-Ksef.HybridApp
