@@ -1,9 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    tags:
-      - "*"
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -26,17 +25,19 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Show release tag
+        run: | 
+          echo "Release Tag: ${{ github.event.release.tag_name }}"
       
       # Build the Docker image
       - name: Build Docker image
         run: |
-          IMAGE_TAG=$([[ "$" == "push" && "$" =~ ^refs/tags/ ]] && echo "$" || echo "$")
-          docker build --build-arg PAT_TOKEN=${{ secrets.GITHUB_TOKEN }} . --file Dockerfile --tag ghcr.io/herbat73/mcp-ksef:${IMAGE_TAG}
-          docker tag ghcr.io/herbat73/mcp-ksef:${IMAGE_TAG} ghcr.io/herbat73/mcp-ksef:latest
+          docker build --build-arg PAT_TOKEN=${{ secrets.GITHUB_TOKEN }} . --file Dockerfile --tag ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }}
+          docker tag ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }} ghcr.io/herbat73/mcp-ksef:latest
       
       # Push the Docker image to GitHub Container Registry
       - name: Push Docker image
         run: |
-          IMAGE_TAG=$([[ "$" == "push" && "$" =~ ^refs/tags/ ]] && echo "$" || echo "$")
-          docker push ghcr.io/herbat73/mcp-ksef:${IMAGE_TAG}
+          docker push ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }}
           docker push ghcr.io/herbat73/mcp-ksef:latest
