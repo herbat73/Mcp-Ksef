@@ -33,11 +33,11 @@ jobs:
       # Build the Docker image
       - name: Build Docker image
         run: |
-          docker build --build-arg PAT_TOKEN=${{ secrets.GITHUB_TOKEN }} . --file Dockerfile --tag ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }}
-          docker tag ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }} ghcr.io/herbat73/mcp-ksef:latest
+          docker build --build-arg PAT_TOKEN=${{ secrets.GITHUB_TOKEN }} . --file Dockerfile --tag herbat73/mcp-ksef:${{ github.event.release.tag_name }}
+          docker tag herbat73/mcp-ksef:${{ github.event.release.tag_name }} herbat73/mcp-ksef:latest
       
       # Push the Docker image to GitHub Container Registry
       - name: Push Docker image
         run: |
-          docker push ghcr.io/herbat73/mcp-ksef:${{ github.event.release.tag_name }}
-          docker push ghcr.io/herbat73/mcp-ksef:latest
+          docker push herbat73/mcp-ksef:${{ github.event.release.tag_name }}
+          docker push herbat73/mcp-ksef:latest
