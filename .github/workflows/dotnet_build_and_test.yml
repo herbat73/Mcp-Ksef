@@ -20,6 +20,8 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
+    - name: Add nuget source for ksef.client
+      run: dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" --name github-cirf
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
