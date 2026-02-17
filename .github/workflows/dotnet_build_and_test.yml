@@ -34,5 +34,5 @@ jobs:
       if: success() || failure()
       with:
         name: .NET Test Results
-        path: 'Mcp-Ksef/test-results/*.trx'
+        path: '/Mcp-Ksef/test-results/*.trx'
         reporter: dotnet-trx
