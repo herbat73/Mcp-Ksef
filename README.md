@@ -2,6 +2,7 @@
 
 [![](https://badge.mcpx.dev?status=on 'MCP Enabled')](https://modelcontextprotocol.io/introduction)
 [![](https://img.shields.io/badge/License-MIT-red.svg 'MIT License')](https://opensource.org/licenses/MIT)
+[![Build](https://github.com/herbat73/Mcp-Ksef/actions/workflows/dotnet_build_and_test.yml//badge.svg)](https://github.com/herbat73/Mcp-Ksef/actions/workflows/dotnet_build_and_test.yml)
 
 To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiania, przesyłania, otrzymywania i przechowywania faktur.
 
