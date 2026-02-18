@@ -1,10 +1,14 @@
 ﻿using System.ComponentModel;
+using System.Security.Cryptography.X509Certificates;
+using KSeF.Client.Api.Builders.Auth;
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using McpKsef.HybridApp.Helpers;
 using Shared.Consts;
 using ModelContextProtocol.Server;
 
@@ -14,19 +18,16 @@ namespace McpKsef.HybridApp.Tools;
 public class KsefTools : IKsefTools
 {
     private readonly ILogger<KsefTools> _logger;
-    private readonly string? _ksefToken;
     private readonly string? _vatId;
     private static string? _authToken;
     private readonly IAuthorizationClient _authorizationClient;
     private readonly ICryptographyService _cryptographyService;
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
-
     
     public KsefTools(ILogger<KsefTools> logger, IAuthorizationClient authorizationClient, ICryptographyService cryptographyService, IKSeFClient ksefClient, IVerificationLinkService  verificationLinkService)
     {
         _logger = logger;
-        _ksefToken = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
         _vatId = Environment.GetEnvironmentVariable(EnvironmentConsts.VatId);
         _authorizationClient =  authorizationClient;
         _cryptographyService =  cryptographyService;
@@ -169,34 +170,96 @@ public class KsefTools : IKsefTools
         };
     }
     
-    private async Task<string> GetAccessTokenAsync(string nip, string ksefToken)
+    private async Task<string> GetAccessTokenFromKsefTokenAsync(string nip)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenAsync)} called nip: {nip}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenFromKsefTokenAsync)} called nip: {nip}");
         
         const AuthenticationTokenContextIdentifierType contextType = AuthenticationTokenContextIdentifierType.Nip;
         AuthenticationTokenAuthorizationPolicy? authorizationPolicy = null;
         IAuthCoordinator authCoordinator = new AuthCoordinator(_authorizationClient);
             
-        var result = await authCoordinator.AuthKsefTokenAsync(
+        var accessTokenResponse = await authCoordinator.AuthKsefTokenAsync(
             contextType,
             nip,
-            ksefToken,
+            Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken),
             _cryptographyService,
             EncryptionMethodEnum.Rsa,
             authorizationPolicy,
             CancellationToken.None
         );
         
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenAsync)} return AccessToken Length: {result.AccessToken.Token.Length}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenFromKsefTokenAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length}");
         
-        return result.AccessToken.Token;
+        return accessTokenResponse.AccessToken.Token;
+    }
+    
+    private async Task<string> GetAccessTokenByCertAsync(string nip)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenByCertAsync)} called nip: {nip}");
+        
+        var ksefCertificateFile = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefCertificateFile);
+        var ksefPrivateKeyFile = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyFile);
+        var ksefPrivateKeyPassword = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyPassword);
+        
+        var certContent = await File.ReadAllTextAsync(ksefCertificateFile);
+        var privateKeyContent = await File.ReadAllTextAsync(ksefPrivateKeyFile);
+        var certificate = X509Certificate2.CreateFromEncryptedPem(certContent, privateKeyContent, ksefPrivateKeyPassword);
+        
+        var challengeResponse = await _authorizationClient.GetAuthChallengeAsync();
+        var challenge = challengeResponse.Challenge;
+        
+        const AuthenticationTokenContextIdentifierType contextType = AuthenticationTokenContextIdentifierType.Nip;
+        
+        var authTokenRequest =
+            AuthTokenRequestBuilder
+                .Create()
+                .WithChallenge(challenge)
+                .WithContext(contextType, nip)
+                .WithIdentifierType(AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject);
+
+        var authorizeRequest = authTokenRequest.Build();
+        
+        var unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authorizeRequest);
+        var signedXml = SignatureService.Sign(unsignedXml, certificate);
+
+        var authSubmission = await _authorizationClient
+            .SubmitXadesAuthRequestAsync(signedXml, false);
+
+        AuthStatus authStatus;
+        DateTime startTime = DateTime.UtcNow;
+        TimeSpan timeout = TimeSpan.FromMinutes(2);
+
+        do
+        {
+            authStatus = await _authorizationClient.GetAuthStatusAsync(authSubmission.ReferenceNumber, authSubmission.AuthenticationToken.Token);
+            if (authStatus.Status.Code != 200)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+        }
+        while (authStatus.Status.Code != 200 && (DateTime.UtcNow - startTime) < timeout);
+        
+        if (authStatus.Status.Code != 200)
+        {
+            throw new TimeoutException("Timeout Uwierzytelniania: Brak tokena po 2 minutach.");
+        }
+
+        var accessTokenResponse =
+            await _authorizationClient.GetAccessTokenAsync(authSubmission.AuthenticationToken.Token);
+            
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenByCertAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length}");
+        
+        return accessTokenResponse.AccessToken.Token;
     }
 
     private async Task VerifyAuthToken()
     {
         if (string.IsNullOrEmpty(_authToken))
         {
-            _authToken = await GetAccessTokenAsync(_vatId, _ksefToken); 
+            var infoHelperResult = RunInfoHelper.CheckEnvironmentConsts();
+            _authToken = infoHelperResult.IsKsefCertificateValid ? 
+                await GetAccessTokenByCertAsync(_vatId) : 
+                await GetAccessTokenFromKsefTokenAsync(_vatId); 
         }
     }
 }
