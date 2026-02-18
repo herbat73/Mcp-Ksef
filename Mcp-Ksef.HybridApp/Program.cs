@@ -9,7 +9,7 @@ using Shared.Extensions;
 using McpKsef.HybridApp.Helpers;
 using Shared.Consts;
 
-if (!RunInfoHelper.IsSettingsValidToRun()) return;
+if (!RunInfoHelper.CheckEnvironmentConsts().IsValid) return;
 
 Console.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
 

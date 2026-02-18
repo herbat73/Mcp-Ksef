@@ -8,6 +8,7 @@
     <PackageId>Mcp-Ksef.HybridApp</PackageId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <RootNamespace>McpKsef.HybridApp</RootNamespace>
+    <NoWarn>CS8604;CS0618;CS8625;CS8629</NoWarn>
   </PropertyGroup>
   
   <ItemGroup>

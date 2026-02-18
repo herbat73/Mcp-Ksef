@@ -1,67 +1,169 @@
-﻿using Shared.Consts;
+﻿using McpKsef.HybridApp.Helpers;
+using Shared.Consts;
 
-namespace McpKsef.HybridApp.Helpers.Tests
+namespace Mcp_Ksef.HybridApp.Tests.Helpers;
+
+public class RunInfoHelperInfoTests
 {
-    public class RunInfoHelperTest
+    private (InfoHelperResultVo result, string output) RunWithEnv(
+        string? ksefValue,
+        string? vatValue,
+        bool createCertFiles = false,
+        string? privateKeyPassword = null,
+        string? certFilePath = null,
+        string? keyFilePath = null)
     {
-        private (bool result, string output) RunWithEnv(string ksefValue, string vatValue)
+        var originalOut = Console.Out;
+        var sw = new StringWriter();
+        Console.SetOut(sw);
+
+        var origKsef = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
+        var origVat = Environment.GetEnvironmentVariable(EnvironmentConsts.VatId);
+        var origCert = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefCertificateFile);
+        var origKey = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyFile);
+        var origPass = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyPassword);
+
+        string? createdCert = null;
+        string? createdKey = null;
+
+        try
         {
-            var originalOut = Console.Out;
-            var sw = new StringWriter();
-            Console.SetOut(sw);
-
-            var origKsef = Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken);
-            var origVat = Environment.GetEnvironmentVariable(EnvironmentConsts.VatId);
-
-            try
+            if (createCertFiles)
             {
-                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, ksefValue);
-                Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, vatValue);
-
-                var result = RunInfoHelper.IsSettingsValidToRun();
-                Console.Out.Flush();
-                return (result, sw.ToString());
+                createdCert = Path.GetTempFileName();
+                File.WriteAllText(createdCert, "cert");
+                createdKey = Path.GetTempFileName();
+                File.WriteAllText(createdKey, "key");
             }
-            finally
+
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, ksefValue);
+            Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, vatValue);
+
+            if (createCertFiles)
             {
-                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, origKsef);
-                Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, origVat);
-                Console.SetOut(originalOut);
+                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefCertificateFile, createdCert);
+                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyFile, createdKey);
             }
-        }
+            else
+            {
+                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefCertificateFile, certFilePath);
+                Environment.SetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyFile, keyFilePath);
+            }
 
-        [Fact]
-        public void BothSet_ReturnsTrue_NoOutput()
-        {
-            var (result, output) = RunWithEnv("valid-token", "PL1234567890");
-            Assert.True(result);
-            Assert.True(string.IsNullOrWhiteSpace(output));
-        }
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyPassword, privateKeyPassword);
 
-        [Fact]
-        public void MissingKsef_ReturnsFalse_WritesKsefMessage()
-        {
-            var (result, output) = RunWithEnv(null, "PL1234567890");
-            Assert.False(result);
-            Assert.Contains(EnvironmentConsts.KsefToken, output);
-            Assert.Contains("KSeF", output, StringComparison.OrdinalIgnoreCase);
+            var result = RunInfoHelper.CheckEnvironmentConsts();
+            Console.Out.Flush();
+            return (result, sw.ToString());
         }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, origKsef);
+            Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, origVat);
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefCertificateFile, origCert);
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyFile, origKey);
+            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefPrivateKeyPassword, origPass);
 
-        [Fact]
-        public void MissingVat_ReturnsTrue_WritesVatMessage()
-        {
-            var (result, output) = RunWithEnv("valid-token", null);
-            Assert.True(result);
-            Assert.Contains(EnvironmentConsts.VatId, output);
-        }
+            if (createdCert != null && File.Exists(createdCert))
+            {
+                try { File.Delete(createdCert); } catch { }
+            }
+            if (createdKey != null && File.Exists(createdKey))
+            {
+                try { File.Delete(createdKey); } catch { }
+            }
 
-        [Fact]
-        public void BothMissing_ReturnsFalse_WritesBothMessages()
-        {
-            var (result, output) = RunWithEnv(null, null);
-            Assert.False(result);
-            Assert.Contains(EnvironmentConsts.KsefToken, output);
-            Assert.Contains(EnvironmentConsts.VatId, output);
+            Console.SetOut(originalOut);
         }
+    }
+
+    [Fact]
+    public void BothTokenAndVatSet_ReturnsTokenAndVatValid_NoOutput()
+    {
+        var (result, output) = RunWithEnv("valid-token", "PL1234567890");
+        Assert.True(result.IsKsefTokenValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(string.IsNullOrWhiteSpace(output));
+    }
+
+    [Fact]
+    public void MissingVat_ReturnsVatInvalid_WritesVatMessage()
+    {
+        var (result, output) = RunWithEnv("valid-token", null);
+        Assert.False(result.IsVatIdValid);
+        Assert.Contains(EnvironmentConsts.VatId, output);
+    }
+
+    [Fact]
+    public void MissingKsefToken_ButCertificateValid_ReturnsTokenInvalid_CertificateValid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefValue: null,
+            vatValue: "PL1234567890",
+            createCertFiles: true,
+            privateKeyPassword: "pwd");
+
+        Assert.False(result.IsKsefTokenValid);
+        Assert.True(result.IsKsefCertificateValid);
+    }
+
+    [Fact]
+    public void KsefCertificatePathsPointToMissingFiles_CertificateInvalid_WritesFilePathMessages()
+    {
+        var fakeCertPath = Path.Combine(Path.GetTempPath(), "nonexistent_cert_" + Guid.NewGuid() + ".crt");
+        var fakeKeyPath = Path.Combine(Path.GetTempPath(), "nonexistent_key_" + Guid.NewGuid() + ".key");
+
+        var (result, output) = RunWithEnv(
+            ksefValue: null,
+            vatValue: null,
+            createCertFiles: false,
+            privateKeyPassword: "pwd",
+            certFilePath: fakeCertPath,
+            keyFilePath: fakeKeyPath);
+
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.Contains(EnvironmentConsts.KsefCertificateFile, output);
+        Assert.Contains(EnvironmentConsts.KsefPrivateKeyFile, output);
+    }
+
+    [Fact]
+    public void AllKsefParamsAndVatSet_ReturnsAllValid_NoOutput()
+    {
+        var (result, output) = RunWithEnv(
+            ksefValue: "valid-token",
+            vatValue: "PL1234567890",
+            createCertFiles: true,
+            privateKeyPassword: "pwd");
+
+        Assert.True(result.IsKsefTokenValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(result.IsKsefCertificateValid);
+        Assert.True(string.IsNullOrWhiteSpace(output));
+    }
+
+    [Fact]
+    public void OnlyValidCertificate_NoTokenNoVat_CertificateValidOthersFalse()
+    {
+        var (result, output) = RunWithEnv(
+            ksefValue: null,
+            vatValue: null,
+            createCertFiles: true,
+            privateKeyPassword: "pwd");
+
+        Assert.False(result.IsKsefTokenValid);
+        Assert.False(result.IsVatIdValid);
+        Assert.True(result.IsKsefCertificateValid);
+    }
+
+    [Fact]
+    public void MissingPassword_CertificateInvalid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefValue: null,
+            vatValue: null,
+            createCertFiles: true,
+            privateKeyPassword: null);
+
+        Assert.False(result.IsKsefCertificateValid);
     }
 }
