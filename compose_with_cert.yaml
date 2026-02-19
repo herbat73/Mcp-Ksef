@@ -2,9 +2,13 @@
   mcpksef:
     image: herbat73/mcp-ksef:latest
     container_name: mcp-ksef-container
+    volumes:
+      - "C:/Users/aadam/Projects/Certs:/etc/certs:ro"
     ports:
       - 8080:8080
     command: --http --use-ksef-production
     environment:
-      - KSEF_TOKEN=Tutaj_Wklej_Token_KSeF
+      - KSEF_CERTIFICATE_FILE=/etc/certs/Cert3.crt
+      - KSEF_PRIVATE_KEY_FILE=/etc/certs/Cert3.key
+      - KSEF_PRIVATE_KEY_PASSWORD=Tutaj_haslo_do_klucza_prywatnego
       - KSEF_VATID=Tutaj_Wpisz_Numer_Vat_Swojej_firmy

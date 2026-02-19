@@ -47,8 +47,8 @@ services:
       - 8080:8080
     command: --http --use-ksef-production
     environment:
-      - KSEF_TOKEN="test my ksef token"
-      - KSEF_VATID="my vat id"
+      - KSEF_TOKEN=Tutaj_Wklej_Token_KSeF
+      - KSEF_VATID=Tutaj_Wpisz_Numer_Vat_Swojej_firmy
 ```
 
 aby go uruchomić zmienć parametry KSEF_TOKEN oraz KSEF_VATID a następnie wpisz komendę 
@@ -56,5 +56,32 @@ aby go uruchomić zmienć parametry KSEF_TOKEN oraz KSEF_VATID a następnie wpis
 ```bash
 docker-compose -f compose.yaml up -d
 ```
+
+## Uruchomienie z docker-compose z certyfikatem KSeF
+
+Przykładowy plik jest tutaj [compose_with_cert.yaml](../compose_with_cert.yaml
+
+```bash
+services:
+  mcpksef:
+    image: herbat73/mcp-ksef:latest
+    container_name: mcp-ksef-container
+    volumes:
+      - "C:/Users/aadam/Projects/Certs:/etc/certs:ro"
+    ports:
+      - 8080:8080
+    command: --http --use-ksef-production
+    environment:
+      - KSEF_CERTIFICATE_FILE=/etc/certs/Cert3.crt
+      - KSEF_PRIVATE_KEY_FILE=/etc/certs/Cert3.key
+      - KSEF_PRIVATE_KEY_PASSWORD=Tutaj_haslo_do_klucza_prywatnego
+      - KSEF_VATID=Tutaj_Wpisz_Numer_Vat_Swojej_firmy
+```
+
+Gdzie w tym przypadku
+
+- C:/Users/aadam/Projects/Certs to miejsce gdzie znajdują się certyfikat KSeF i klucz prywatny na komputerze.
+- Cert3.crt - to nazwa pliku certyfikatu jaki został pobrany z KSeF
+- Cert3.key - to nazwa pliku klucza prywatnego jaki został użyty do generowania certyfikatu
 
 [Powrót do początku](../README.md)

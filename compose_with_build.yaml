@@ -11,5 +11,5 @@
     ports:
       - 8080:8080
     environment:
-      - KSEF_TOKEN="test my ksef token"
-      - KSEF_VATID="my vat id"
+      - KSEF_TOKEN=Tutaj_Wklej_Token_KSeF
+      - KSEF_VATID=Tutaj_Wpisz_Numer_Vat_Swojej_firmy
