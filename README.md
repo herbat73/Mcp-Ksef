@@ -34,6 +34,21 @@ Instrukcje dla KSeF
 
 (*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz
 
+## Jak użyć
+
+Użyj podobnego opisu lub użyj bezpośrednio nazwy w celu wywołania pożądanej funkcji.
+
+Np.
+
+```bash
+Pobierz fakturę o numerze referencyjnym 5242764991-20260131-01002063FA88-AD i pokaż dane identyfkacyjne podmiotu2 oraz number faktury
+```
+
+Lub bezpośrednio
+```bash
+#get_invoice_by_invoice_number "FV 2026/1/31/754149652576"
+```
+
 ## Przykład
 
 Przykład użycia połączenia do KSeF w kliencie Claude Desktop

@@ -4,12 +4,13 @@ namespace McpKsef.HybridApp.Tools;
 
 public interface IKsefTools
 {
-    Task<string> GetInvoice(string ksefNumber);
+    Task<string> GetInvoice(string ksefNumber, CancellationToken cancellationToken);
     Task<PagedInvoiceResponse> GetInvoicesListForGivenDate(
         DateTime dataFakturyOd,
-        DateTime dataFakturyDo);
-    Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber);
-    Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip);
-    Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe);
-    Task<string> GetInvoiceUrl(string ksefNumber);
+        DateTime dataFakturyDo,
+        CancellationToken cancellationToken);
+    Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken);
+    Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken);
+    Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken);
+    Task<string> GetInvoiceUrl(string ksefNumber, CancellationToken cancellationToken);
 }
