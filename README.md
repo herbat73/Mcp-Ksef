@@ -33,3 +33,11 @@ Instrukcje dla KSeF
 | Pobierz link do faktury po numerze ksef | `#get_invoice_url_by_ksef` |
 
 (*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz
+
+## Przykład
+
+Przykład użycia połączenia do KSeF w kliencie Claude Desktop
+
+<p>
+  <img src="./Images/pobierz_fakture_po_numerze_ksef.gif" alt="KSeF MCP na Claude Desktop " width="800">
+</p>

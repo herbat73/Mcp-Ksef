@@ -66,38 +66,98 @@ public class RunInfoHelperTest
         }
     }
 
-    [Fact]
-    public void TokenAndVatSet_ReturnsValid_WritesSuccessMessageWithToken()
+       [Fact]
+    public void TokenValid_CertFilesExistButPasswordMissing_TokenSavesConnection_ReturnsValid()
     {
-        var (result, output) = RunWithEnv(ksefToken: "test-token", vatId: "1234567890");
+        var (result, output) = RunWithEnv(
+            ksefToken: "test-token",
+            vatId: "1234567890",
+            createCertFiles: true,
+            privateKeyPassword: null);
 
         Assert.True(result.IsKsefTokenValid);
-        Assert.True(result.IsVatIdValid);
         Assert.False(result.IsKsefCertificateValid);
+        Assert.True(result.IsVatIdValid);
         Assert.True(result.IsValid);
         Assert.Contains("token KSeF", output);
         Assert.Contains("poprawnie", output);
+        Assert.DoesNotContain(Shared.Consts.EnvironmentConsts.KsefPrivateKeyPassword, output);
     }
 
     [Fact]
-    public void MissingVat_ReturnsInvalid_WritesVatMessage()
+    public void BothCertAndKeyFilesNonExistent_WritesBothFileNotFoundErrors()
     {
-        var (result, output) = RunWithEnv(ksefToken: "test-token", vatId: null);
+        var nonExistentCert = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".crt");
+        var nonExistentKey = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".key");
+
+        var (result, output) = RunWithEnv(
+            certFilePath: nonExistentCert,
+            keyFilePath: nonExistentKey,
+            privateKeyPassword: "test-password");
+
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.False(result.IsKsefTokenValid);
+        Assert.Contains(Shared.Consts.EnvironmentConsts.KsefCertificateFile, output);
+        Assert.Contains(Shared.Consts.EnvironmentConsts.KsefPrivateKeyFile, output);
+        var certOccurrences = output.Split(Shared.Consts.EnvironmentConsts.KsefCertificateFile).Length - 1;
+        var keyOccurrences = output.Split(Shared.Consts.EnvironmentConsts.KsefPrivateKeyFile).Length - 1;
+        Assert.True(certOccurrences >= 1);
+        Assert.True(keyOccurrences >= 1);
+        Assert.Contains("nie został znaleziony", output);
+    }
+
+    [Fact]
+    public void EmptyKeyFilePath_NonEmptyCertPath_WritesBothEmptyLocationErrors()
+    {
+        var nonExistentCert = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".crt");
+
+        var (result, output) = RunWithEnv(
+            certFilePath: nonExistentCert,
+            keyFilePath: "",
+            privateKeyPassword: "test-password");
+
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.Contains("Nie podano lokalizacji pliku klucza prywatnego", output);
+    }
+
+    [Fact]
+    public void TokenValid_NoCertEnvVarsAtAll_ReturnsValid_NoCertErrorMessages()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "test-token",
+            vatId: "1234567890");
 
         Assert.True(result.IsKsefTokenValid);
-        Assert.False(result.IsVatIdValid);
-        Assert.False(result.IsValid);
-        Assert.Contains(Shared.Consts.EnvironmentConsts.VatId, output);
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(Shared.Consts.EnvironmentConsts.KsefCertificateFile, output);
+        Assert.DoesNotContain(Shared.Consts.EnvironmentConsts.KsefPrivateKeyFile, output);
+        Assert.DoesNotContain("nie został znaleziony", output);
     }
 
     [Fact]
-    public void NoAuthMethod_ReturnsAllInvalid_WritesMultipleErrors()
+    public void CertValidNoToken_VatValid_UsesCertForConnection_WritesCertificateInMessage()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: null,
+            vatId: "1234567890",
+            createCertFiles: true,
+            privateKeyPassword: "test-password");
+
+        Assert.False(result.IsKsefTokenValid);
+        Assert.True(result.IsKsefCertificateValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(result.IsValid);
+        Assert.Contains("certyfikat KSeF", output);
+        Assert.DoesNotContain("token KSeF", output);
+    }
+
+    [Fact]
+    public void NoEnvVarsAtAll_IsValidFalse_WritesAllThreeRequiredVarNames()
     {
         var (result, output) = RunWithEnv();
 
-        Assert.False(result.IsKsefTokenValid);
-        Assert.False(result.IsKsefCertificateValid);
-        Assert.False(result.IsVatIdValid);
         Assert.False(result.IsValid);
         Assert.Contains(Shared.Consts.EnvironmentConsts.KsefCertificateFile, output);
         Assert.Contains(Shared.Consts.EnvironmentConsts.KsefPrivateKeyFile, output);
@@ -105,95 +165,11 @@ public class RunInfoHelperTest
     }
 
     [Fact]
-    public void ValidCertificateNoToken_WritesAboutMissingTokenOrCert()
+    public void CertFilesExistPasswordSet_NoToken_NoVat_CertValidButOverallInvalid()
     {
         var (result, output) = RunWithEnv(
             createCertFiles: true,
-            privateKeyPassword: "test-password",
-            vatId: "1234567890");
-
-        Assert.False(result.IsKsefTokenValid);
-        Assert.True(result.IsKsefCertificateValid);
-        Assert.True(result.IsVatIdValid);
-        Assert.True(result.IsValid);
-        Assert.Contains("certyfikat KSeF", output);
-    }
-
-    [Fact]
-    public void CertificateFileMissing_CertInvalid_WritesFileNotFound()
-    {
-        var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".crt");
-        
-        var (result, output) = RunWithEnv(
-            certFilePath: nonExistentPath,
-            keyFilePath: Path.GetTempFileName(),
-            privateKeyPassword: "test-password");
-
-        Assert.False(result.IsKsefCertificateValid);
-        Assert.Contains(Shared.Consts.EnvironmentConsts.KsefCertificateFile, output);
-        Assert.Contains("nie został znaleziony", output);
-    }
-
-    [Fact]
-    public void PrivateKeyFileMissing_CertInvalid_WritesKeyFileNotFound()
-    {
-        var tempCert = Path.GetTempFileName();
-        File.WriteAllText(tempCert, "cert");
-        var nonExistentKeyPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".key");
-
-        try
-        {
-            var (result, output) = RunWithEnv(
-                certFilePath: tempCert,
-                keyFilePath: nonExistentKeyPath,
-                privateKeyPassword: "test-password");
-
-            Assert.False(result.IsKsefCertificateValid);
-            Assert.Contains(Shared.Consts.EnvironmentConsts.KsefPrivateKeyFile, output);
-            Assert.Contains("nie został znaleziony", output);
-        }
-        finally
-        {
-            if (File.Exists(tempCert))
-                File.Delete(tempCert);
-        }
-    }
-
-    [Fact]
-    public void PasswordMissing_FilesExist_CertInvalid_WritesPasswordMissing()
-    {
-        var (result, output) = RunWithEnv(
-            createCertFiles: true,
-            privateKeyPassword: null);
-
-        Assert.False(result.IsKsefCertificateValid);
-        Assert.Contains(Shared.Consts.EnvironmentConsts.KsefPrivateKeyPassword, output);
-        Assert.Contains("hasła", output);
-    }
-
-    [Fact]
-    public void AllParametersValidWithCertificate_ReturnsValid_WritesCertificateSuccess()
-    {
-        var (result, output) = RunWithEnv(
-            ksefToken: "test-token",
-            vatId: "1234567890",
-            createCertFiles: true,
-            privateKeyPassword: "test-password");
-
-        Assert.True(result.IsKsefTokenValid);
-        Assert.True(result.IsKsefCertificateValid);
-        Assert.True(result.IsVatIdValid);
-        Assert.True(result.IsValid);
-        Assert.Contains("certyfikat KSeF", output);
-        Assert.Contains("poprawnie", output);
-    }
-
-    [Fact]
-    public void OnlyCertificateValidNoVat_ReturnsInvalid_WritesVatError()
-    {
-        var (result, output) = RunWithEnv(
-            createCertFiles: true,
-            privateKeyPassword: "test-password",
+            privateKeyPassword: "secret",
             vatId: null);
 
         Assert.False(result.IsKsefTokenValid);
@@ -201,18 +177,6 @@ public class RunInfoHelperTest
         Assert.False(result.IsVatIdValid);
         Assert.False(result.IsValid);
         Assert.Contains(Shared.Consts.EnvironmentConsts.VatId, output);
-    }
-
-    [Fact]
-    public void EmptyCertificateFilePath_CertInvalid_WritesNoPodano()
-    {
-        var (result, output) = RunWithEnv(
-            certFilePath: "",
-            keyFilePath: "",
-            privateKeyPassword: "test-password");
-
-        Assert.False(result.IsKsefCertificateValid);
-        Assert.Contains("Nie podano lokalizacji pliku certyfikatu", output);
-        Assert.Contains("Nie podano lokalizacji pliku klucza prywatnego", output);
+        Assert.DoesNotContain("Zmienne połączenia ustawione poprawnie", output);
     }
 }

@@ -10,8 +10,7 @@
 
 ![Cloud Desktop](../Images/CloudDesktopSettingsEditConfig.png)
 
-4. Następnie zmień plik konfiguracji claude_desktop_config.json na
-
+4. Następnie zmień plik konfiguracji claude_desktop_config.json zakładając ze uruchomiłeś MCP na porcie 5280 na
 
 ```json
 {
@@ -24,7 +23,22 @@
 }
 ```
 
-zakładając ze uruchomiłeś MCP na porcie 5280 (lub jako Docker na 8080 zmieniając wartość).
+lub jako Docker na 8080 zmieniając wartość na
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:8080/mcp"
+      ]
+    }
+  }
+}
+```
+
 
 5. Zamknij (exit) Cloud Desktop i uruchom ponownie.
 
