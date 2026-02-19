@@ -48,8 +48,12 @@ dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" --name 
 
 Ustaw zmienne środowiskowe potrzebne do dostępu do KSeF
 
-- `KSEF_TOKEN`: - token KSeF wygenerowany w systemie KsEF (dla wybranego systemu Test lub Produkcja).
 - `KSEF_VATID`: - NIP firmy dla której chcesz użyć systemu KsEF
+- `KSEF_CERTIFICATE_FILE`: - ścieżka do certyfikatu KSeF
+- `KSEF_PRIVATE_KEY_FILE`: - ścieżka do klucz prywatnego wygenerowanego w systemie KSeF
+- `KSEF_PRIVATE_KEY_PASSWORD`: - hasło do klucza prywatnego podanego do generacji klucza prywatnego w KSeF
+lub
+- `KSEF_TOKEN`: - token KSeF wygenerowany w systemie KsEF (dla wybranego systemu Test lub Produkcja).
 
 Z tymi parametrami możesz użyć serwera MCP w trybie HTTP strumieniowym z dostępem do systemu produkcyjnego (https://api.ksef.mf.gov.pl) jak:
 

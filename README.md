@@ -6,6 +6,8 @@
 
 To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiania, przesyłania, otrzymywania i przechowywania faktur.
 
+Połączenie do KSeF wymaga wygenerowania tokenu lub certyfikatu. Obie metody są wspierane przez ten serwer MCP.
+
 **Serwer MCP w rozwoju. Na razie działa tylko pobieranie faktur. Będą dodawane nowe funkcje.**
 
 Spis treści

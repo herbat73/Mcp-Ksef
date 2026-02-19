@@ -4,7 +4,7 @@ W zależności od tego czy uruchomiłeś serwer jako kontyner Docker czy z kodu 
 
 Domyślnie uruchomienie serwera jako konyner Docker będzie nasłuchiwał na porcie 8080 a z kodu na porcie 5280
 
-### Konfiguracja dla serwera uruchomiony z Dockera (system produkcyjny)
+### Konfiguracja dla serwera uruchomiony z Dockera (system produkcyjny) przez token KSeF
 
 ```bash
 docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz number nip" -p 8080:8080 herbat73/mcp-ksef:latest --http --use-ksef-production 
@@ -24,7 +24,7 @@ Uruchom klienta MCP Visual Studio Code, konfiguracja mcp.json
 }
 ```
 
-### Konfiguracja dla serwera uruchomionego z kodu (system produkcyjny)
+### Konfiguracja dla serwera uruchomionego bezpośrednio kodu c# netcore (system produkcyjny, wymaga netcore 9 SDK)
 
 Uruchom projekt do dowolnego środowiska np. test dla transportu HTTP strumieniowy
 

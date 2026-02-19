@@ -21,9 +21,12 @@ docker run -e KSEF_TOKEN="tutaj twój token ksef" -e KSEF_VATID="tutaj wpisz num
 
 ### Parametry
 
-**KSEF_TOKEN** - wygenerowany token z systemu KSEF dla swojej organizacji
-
-**KSEF_VATID** - numer NIP w formacie bez spacji, prefiksu i znakow formatujących
+- `KSEF_VATID`: - NIP firmy dla której chcesz użyć systemu KsEF
+- `KSEF_CERTIFICATE_FILE`: - ścieżka do certyfikatu KSeF
+- `KSEF_PRIVATE_KEY_FILE`: - ścieżka do klucz prywatnego wygenerowanego w systemie KSeF
+- `KSEF_PRIVATE_KEY_PASSWORD`: - hasło do klucza prywatnego podanego do generacji klucza prywatnego w KSeF
+  lub
+- `KSEF_TOKEN`: - token KSeF wygenerowany w systemie KsEF (dla wybranego systemu Test lub Produkcja).
 
 **Przełączniki**
 
