@@ -84,4 +84,10 @@ Gdzie w tym przypadku
 - Cert3.crt - to nazwa pliku certyfikatu jaki został pobrany z KSeF
 - Cert3.key - to nazwa pliku klucza prywatnego jaki został użyty do generowania certyfikatu
 
+Zmodyfikuj parametry do swoich nazw ceryfikatu, kluczy, hasła, nip i wykonaj komendę
+
+```bash
+ docker-compose -f compose_with_cert.yaml up -d
+```
+
 [Powrót do początku](../README.md)
