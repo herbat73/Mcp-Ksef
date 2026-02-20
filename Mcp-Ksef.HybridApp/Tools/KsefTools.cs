@@ -18,7 +18,8 @@ public class KsefTools : IKsefTools
 {
     private readonly ILogger<KsefTools> _logger;
     private readonly string? _vatId;
-    private static string? _authToken;
+    //private static string? _authToken;
+    private static AuthenticationOperationStatusResponse? _authenticationResponse;
     private readonly IAuthorizationClient _authorizationClient;
     private readonly ICryptographyService _cryptographyService;
     private readonly IKSeFClient _ksefClient;
@@ -41,7 +42,7 @@ public class KsefTools : IKsefTools
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
         await VerifyAuthToken(cancellationToken);
         
-        var invoice = await _ksefClient.GetInvoiceAsync(ksefNumber, _authToken, cancellationToken);
+        var invoice = await _ksefClient.GetInvoiceAsync(ksefNumber, _authenticationResponse?.AccessToken.Token, cancellationToken);
         
         return invoice;
     }
@@ -67,7 +68,7 @@ public class KsefTools : IKsefTools
             }
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken, cancellationToken: cancellationToken);
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authenticationResponse?.AccessToken.Token, cancellationToken: cancellationToken);
         return invoiceList;
     }
     
@@ -84,7 +85,7 @@ public class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken, cancellationToken: cancellationToken);
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authenticationResponse?.AccessToken.Token, cancellationToken: cancellationToken);
         return invoiceList;
     }
     
@@ -107,7 +108,7 @@ public class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken, cancellationToken: cancellationToken);
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authenticationResponse?.AccessToken.Token, cancellationToken: cancellationToken);
         return invoiceList;
     }
     
@@ -130,7 +131,7 @@ public class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authToken, cancellationToken: cancellationToken);
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _authenticationResponse?.AccessToken.Token, cancellationToken: cancellationToken);
         return invoiceList;
     }
     
@@ -149,7 +150,7 @@ public class KsefTools : IKsefTools
         
         var metadata = await _ksefClient.QueryInvoiceMetadataAsync(
                     requestPayload: invoiceMetadataQueryRequest,
-                    accessToken: _authToken,
+                    accessToken: _authenticationResponse?.AccessToken.Token,
                     cancellationToken: cancellationToken);
         
         var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
@@ -171,7 +172,7 @@ public class KsefTools : IKsefTools
         };
     }
     
-    private async Task<string> GetAccessTokenFromKsefTokenAsync(string nip, CancellationToken cancellationToken)
+    private async Task<AuthenticationOperationStatusResponse> GetAccessTokenFromKsefTokenAsync(string nip, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenFromKsefTokenAsync)} called nip: {nip}");
         
@@ -189,12 +190,12 @@ public class KsefTools : IKsefTools
             cancellationToken
         );
         
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenFromKsefTokenAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenFromKsefTokenAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length} valid until {accessTokenResponse.AccessToken.ValidUntil}");
         
-        return accessTokenResponse.AccessToken.Token;
+        return accessTokenResponse;
     }
     
-    private async Task<string> GetAccessTokenByCertAsync(string nip, CancellationToken cancellationToken)
+    private async Task<AuthenticationOperationStatusResponse> GetAccessTokenByCertAsync(string nip, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenByCertAsync)} called nip: {nip}");
         
@@ -248,19 +249,32 @@ public class KsefTools : IKsefTools
         var accessTokenResponse =
             await _authorizationClient.GetAccessTokenAsync(authSubmission.AuthenticationToken.Token, cancellationToken);
             
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenByCertAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetAccessTokenByCertAsync)} return AccessToken Length: {accessTokenResponse.AccessToken.Token.Length} valid until {accessTokenResponse.AccessToken.ValidUntil}");
         
-        return accessTokenResponse.AccessToken.Token;
+        return accessTokenResponse;
     }
 
     private async Task VerifyAuthToken(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(_authToken))
+        if (_authenticationResponse == null)
         {
             var infoHelperResult = RunInfoHelper.CheckEnvironmentConsts();
-            _authToken = infoHelperResult.IsKsefCertificateValid ? 
+            _authenticationResponse = infoHelperResult.IsKsefCertificateValid ? 
                 await GetAccessTokenByCertAsync(_vatId, cancellationToken) : 
                 await GetAccessTokenFromKsefTokenAsync(_vatId, cancellationToken); 
+        }
+        else
+        {
+            var refreshTime = DateTime.Now.AddMinutes(5);
+            if (_authenticationResponse?.AccessToken.ValidUntil < refreshTime)
+            {
+                _logger.LogInformation($"Refreshing token as it is valid until: {_authenticationResponse?.AccessToken.ValidUntil}");
+                
+                var tokenRefreshResponse =
+                    await _ksefClient.RefreshAccessTokenAsync(_authenticationResponse!.RefreshToken.Token, cancellationToken);
+                _authenticationResponse.AccessToken = tokenRefreshResponse.AccessToken;
+                _logger.LogInformation($"Token refreshed, now it valid until: {_authenticationResponse?.AccessToken.ValidUntil}");
+            }
         }
     }
 }

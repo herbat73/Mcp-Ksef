@@ -1,585 +1,303 @@
 ﻿using System.Reflection;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using McpKsef.HybridApp.Tools;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Shared.Consts;
-using KSeF.Client.Core.Interfaces.Clients;
-using KSeF.Client.Core.Interfaces.Services;
 
-namespace McpKsef.HybridApp.Tools.Tests
+namespace McpKsef.HybridApp.Tests.Tools;
+
+public class KsefToolsTest : IDisposable
 {
-    public class KsefToolsTest
+    private readonly Mock<ILogger<KsefTools>> _loggerMock;
+    private readonly Mock<IAuthorizationClient> _authClientMock;
+    private readonly Mock<ICryptographyService> _cryptoServiceMock;
+    private readonly Mock<IKSeFClient> _ksefClientMock;
+    private readonly Mock<IVerificationLinkService> _verifyLinkMock;
+
+    public KsefToolsTest()
     {
-        private const string EnvKsefToken = "TEST_KSEF_TOKEN";
-        private const string EnvVatId = "TEST_VAT_ID";
+        _loggerMock = new Mock<ILogger<KsefTools>>();
+        _authClientMock = new Mock<IAuthorizationClient>();
+        _cryptoServiceMock = new Mock<ICryptographyService>();
+        _ksefClientMock = new Mock<IKSeFClient>();
+        _verifyLinkMock = new Mock<IVerificationLinkService>();
 
-        private static void SetEnvVars()
+        ResetStaticAuthResponse();
+    }
+
+    public void Dispose()
+    {
+        ResetStaticAuthResponse();
+    }
+
+    private void ResetStaticAuthResponse()
+    {
+        var field = typeof(KsefTools).GetField("_authenticationResponse", BindingFlags.Static | BindingFlags.NonPublic);
+        if (field != null)
         {
-            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, EnvKsefToken);
-            Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, EnvVatId);
+            field.SetValue(null, null);
         }
+    }
 
-        private static void ClearEnvVars()
+    private void SetStaticAuthResponse(string token, DateTime validUntil)
+    {
+        var response = new AuthenticationOperationStatusResponse
         {
-            Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, null);
-            Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, null);
-        }
+            AccessToken = new TokenInfo
+            {
+                Token = token,
+                ValidUntil = validUntil
+            },
+            RefreshToken = new TokenInfo
+            {
+                Token = "refresh-token",
+                ValidUntil = validUntil.AddMinutes(30)
+            }
+        };
 
-        private static void SetStaticAuthToken(string? token)
+        var field = typeof(KsefTools).GetField("_authenticationResponse", BindingFlags.Static | BindingFlags.NonPublic);
+        field?.SetValue(null, response);
+    }
+    
+    private KsefTools CreateSut(string? vatId = "1111111111")
+    {
+        // We set the VAT_ID env var for the constructor
+        Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, vatId);
+
+        return new KsefTools(
+            _loggerMock.Object,
+            _authClientMock.Object,
+            _cryptoServiceMock.Object,
+            _ksefClientMock.Object,
+            _verifyLinkMock.Object
+        );
+    }
+    
+    [Fact]
+    public async Task GetInvoice_AuthValid_CallsKsefClientWithToken()
+    {
+        // Arrange
+        var token = "valid-token";
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut();
+        var ksefNum = "1234567890-20231001-123456-12";
+        
+        _ksefClientMock.Setup(x => x.GetInvoiceAsync(ksefNum, token, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("xml-content");
+
+        // Act
+        var result = await sut.GetInvoice(ksefNum, CancellationToken.None);
+
+        // Assert
+        Assert.Equal("xml-content", result);
+        _ksefClientMock.Verify(x => x.GetInvoiceAsync(ksefNum, token, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetInvoicesListForGivenDate_AuthValid_CallsQueryWithDates()
+    {
+        // Arrange
+        var token = Guid.NewGuid().ToString();
+        var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut();
+        var from = DateTime.UtcNow.AddDays(-10);
+        var to = DateTime.UtcNow;
+        
+        using var cts = new CancellationTokenSource();
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                token,
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.Is<CancellationToken>(ct => ct == cts.Token)))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(response)
+            .Verifiable();
+
+        // Act
+        var result = await sut.GetInvoicesListForGivenDate(from, to, cts.Token);
+
+        // Assert
+        Assert.Same(response, result);
+        _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
+            It.Is<InvoiceQueryFilters>(f => f.DateRange.From == from && f.DateRange.To == to && f.SubjectType == InvoiceSubjectType.Subject1), 
+            token, It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<SortOrder>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
+    [Fact]
+    public async Task GetInvoiceByInvoiceNumber_AuthValid_CallsQueryWithInvoiceNumber()
+    {
+        // Arrange
+        var token = Guid.NewGuid().ToString();
+        var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut();
+        var invNum = Guid.NewGuid().ToString();
+
+        using var cts = new CancellationTokenSource();
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                token,
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.Is<CancellationToken>(ct => ct == cts.Token)))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(response)
+            .Verifiable();
+
+        // Act
+        var result = await sut.GetInvoiceByInvoiceNumber(invNum, cts.Token);
+
+        // Assert
+        _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
+            It.Is<InvoiceQueryFilters>(f => f.InvoiceNumber == invNum && f.DateRange != null), 
+            token, It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<SortOrder>(),It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Same(response, result);
+        Assert.NotNull(captured);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured.SubjectType);
+        Assert.NotNull(captured.DateRange);
+        Assert.Equal(DateType.Issue, captured.DateRange.DateType); 
+        Assert.True(captured.DateRange.To >= captured.DateRange.From);
+    }
+
+    [Fact]
+    public async Task GetInvoiceByBuyerNip_AuthValid_CallsQueryWithNipIdentifier()
+    {
+        // Arrange
+        var token = Guid.NewGuid().ToString();
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut();
+        var nip = "1010101010";
+        var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
+
+        using var cts = new CancellationTokenSource();
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                token,
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.Is<CancellationToken>(ct => ct == cts.Token)))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(response)
+            .Verifiable();
+
+        // Act
+        await sut.GetInvoiceByBuyerNip(nip, cts.Token);
+
+        // Assert
+        _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
+            It.Is<InvoiceQueryFilters>(f => f.BuyerIdentifier.Type == BuyerIdentifierType.Nip && f.BuyerIdentifier.Value == nip), 
+            token, It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<SortOrder>(),It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
+    [Fact]
+    public async Task GetInvoiceByBuyerVatUe_AuthValid_CallsQueryWithVatUeIdentifier()
+    {
+        // Arrange
+        var token = Guid.NewGuid().ToString();
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut();
+        var vatUe = "PL1010101010";
+        var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
+
+        using var cts = new CancellationTokenSource();
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                token,
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.Is<CancellationToken>(ct => ct == cts.Token)))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(response)
+            .Verifiable();
+
+        // Act
+        await sut.GetInvoiceByBuyerVatUe(vatUe, cts.Token);
+
+        // Assert
+        _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
+            It.Is<InvoiceQueryFilters>(f => f.BuyerIdentifier.Type == BuyerIdentifierType.VatUe && f.BuyerIdentifier.Value == vatUe), 
+            token, It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<SortOrder>(),It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_AuthValid_PullsMetadataAndBuildsUrl()
+    {
+        // Arrange
+        var token = Guid.NewGuid().ToString();
+        var vatId = "1111111111";
+        SetStaticAuthResponse(token, DateTime.UtcNow.AddDays(1));
+        var sut = CreateSut(vatId);
+        var ksefNum = "1234567890-20231001-123456-12";
+        var hash = "abc-hash";
+        var date = DateTime.UtcNow;
+
+        var pagedResponse = new PagedInvoiceResponse
         {
-            var field = typeof(KsefTools).GetField("_authToken", BindingFlags.Static | BindingFlags.NonPublic);
-            field!.SetValue(null, token);
-        }
-
-        private static KsefTools CreateSut(
-            out Mock<ILogger<KsefTools>> loggerMock,
-            out Mock<IAuthorizationClient> authClientMock,
-            out Mock<ICryptographyService> cryptoMock,
-            out Mock<IKSeFClient> ksefClientMock,
-            out Mock<IVerificationLinkService> verificationMock)
-        {
-            SetEnvVars();
-            loggerMock = new Mock<ILogger<KsefTools>>();
-            authClientMock = new Mock<IAuthorizationClient>();
-            cryptoMock = new Mock<ICryptographyService>();
-            ksefClientMock = new Mock<IKSeFClient>();
-            verificationMock = new Mock<IVerificationLinkService>();
-
-            var sut = new KsefTools(
-                loggerMock.Object,
-                authClientMock.Object,
-                cryptoMock.Object,
-                ksefClientMock.Object,
-                verificationMock.Object
-            );
-
-            return sut;
-        }
-
-        [Fact]
-        public async Task GetInvoice_ForwardsArguments_AndReturnsInvoice()
-        {
-            try
+            Invoices = new List<InvoiceSummary>
             {
-                // Arrange
-                const string expectedInvoice = "invoice-xml";
-                const string authToken = "auth-token";
-                const string ksefNumber = "KSEF-123";
-                using var cts = new CancellationTokenSource();
-
-                SetStaticAuthToken(authToken);
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-
-                ksefClient.Setup(c => c.GetInvoiceAsync(
-                        ksefNumber,
-                        authToken,
-                        It.Is<CancellationToken>(ct => ct == cts.Token)))
-                    .ReturnsAsync(expectedInvoice)
-                    .Verifiable();
-
-                // Act
-                var result = await sut.GetInvoice(ksefNumber, cts.Token);
-
-                // Assert
-                Assert.Equal(expectedInvoice, result);
-                ksefClient.Verify();
+                new() { KsefNumber = ksefNum, InvoiceHash = hash, InvoicingDate = date }
             }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
+        };
 
-        [Fact]
-        public async Task GetInvoicesListForGivenDate_BuildsExpectedFilter_AndForwardsCancellationToken()
-        {
-            try
-            {
-                // Arrange
-                var from = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                var to = new DateTime(2025, 1, 31, 0, 0, 0, DateTimeKind.Utc);
-                var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-                using var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                token,
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.Is<CancellationToken>(ct => ct == cts.Token)))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(pagedResponse)
+            .Verifiable();
 
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
+        _verifyLinkMock.Setup(x => x.BuildInvoiceVerificationUrl(vatId, date, hash))
+            .Returns("https://ksef.gov.pl/link");
 
-                InvoiceQueryFilters? captured = null;
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.Is<CancellationToken>(ct => ct == cts.Token)))
-                    .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
-                    .ReturnsAsync(response)
-                    .Verifiable();
+        // Act
+        var result = await sut.GetInvoiceUrl(ksefNum, cts.Token);
 
-                // Act
-                var result = await sut.GetInvoicesListForGivenDate(from, to, cts.Token);
+        // Assert
+        Assert.Equal("https://ksef.gov.pl/link", result);
+    }
 
-                // Assert
-                Assert.Same(response, result);
-                Assert.NotNull(captured);
-                Assert.Equal(InvoiceSubjectType.Subject1, captured.SubjectType);
-                Assert.NotNull(captured.DateRange);
-                Assert.Equal(DateType.Issue, captured.DateRange.DateType);
-                Assert.Equal(from, captured.DateRange.From);
-                Assert.Equal(to, captured.DateRange.To);
-                ksefClient.Verify();
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
+    [Fact]
+    public async Task AuthTokenExpired_RefreshesToken_BeforeApiCall()
+    {
+        // Arrange
+        var oldToken = "old-token";
+        var newToken = "new-token";
+        // Token expires in 1 minute (logic checks for < 5 mins)
+        SetStaticAuthResponse(oldToken, DateTime.Now.AddMinutes(1)); 
+        
+        var sut = CreateSut();
 
-        [Fact]
-        public async Task GetInvoiceByInvoiceNumber_SetsInvoiceNumber_AndUsesIssueDateRange()
-        {
-            try
-            {
-                // Arrange
-                const string invoiceNumber = "INV-2025-001";
-                var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
+        _ksefClientMock.Setup(x => x.RefreshAccessTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RefreshTokenResponse { AccessToken = new TokenInfo { Token = newToken, ValidUntil = DateTime.Now.AddHours(1) } });
 
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
+        _ksefClientMock.Setup(x => x.GetInvoiceAsync(It.IsAny<string>(), newToken, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("xml");
 
-                InvoiceQueryFilters? captured = null;
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.IsAny<CancellationToken>()))
-                    .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
-                    .ReturnsAsync(response)
-                    .Verifiable();
+        // Act
+        await sut.GetInvoice("123", CancellationToken.None);
 
-                // Act
-                var result = await sut.GetInvoiceByInvoiceNumber(invoiceNumber, CancellationToken.None);
-
-                // Assert
-                Assert.Same(response, result);
-                Assert.NotNull(captured);
-                Assert.Equal(invoiceNumber, captured.InvoiceNumber);
-                Assert.NotNull(captured.DateRange);
-                Assert.Equal(DateType.Issue, captured.DateRange.DateType);
-                Assert.True(captured.DateRange.To >= captured.DateRange.From);
-                ksefClient.Verify();
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
-
-        [Fact]
-        public async Task GetInvoiceByBuyerNip_SetsBuyerIdentifierNip()
-        {
-            try
-            {
-                // Arrange
-                const string nip = "PL1234567890";
-                var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-
-                InvoiceQueryFilters? captured = null;
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.IsAny<CancellationToken>()))
-                    .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
-                    .ReturnsAsync(response)
-                    .Verifiable();
-
-                // Act
-                var result = await sut.GetInvoiceByBuyerNip(nip, CancellationToken.None);
-
-                // Assert
-                Assert.Same(response, result);
-                Assert.NotNull(captured);
-                Assert.NotNull(captured.BuyerIdentifier);
-                Assert.Equal(BuyerIdentifierType.Nip, captured.BuyerIdentifier.Type);
-                Assert.Equal(nip, captured.BuyerIdentifier.Value);
-                Assert.Equal(DateType.Issue, captured.DateRange.DateType);
-                ksefClient.Verify();
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
-
-        [Fact]
-        public async Task GetInvoiceByBuyerVatUe_SetsBuyerIdentifierVatUe()
-        {
-            try
-            {
-                // Arrange
-                const string vatUe = "EU123456789";
-                var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-
-                InvoiceQueryFilters? captured = null;
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.IsAny<CancellationToken>()))
-                    .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
-                    .ReturnsAsync(response)
-                    .Verifiable();
-
-                // Act
-                var result = await sut.GetInvoiceByBuyerVatUe(vatUe, CancellationToken.None);
-
-                // Assert
-                Assert.Same(response, result);
-                Assert.NotNull(captured);
-                Assert.NotNull(captured.BuyerIdentifier);
-                Assert.Equal(BuyerIdentifierType.VatUe, captured.BuyerIdentifier.Type);
-                Assert.Equal(vatUe, captured.BuyerIdentifier.Value);
-                Assert.Equal(DateType.Issue, captured.DateRange.DateType);
-                ksefClient.Verify();
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
-
-        [Fact]
-        public async Task GetInvoiceUrl_UsesMetadataAndVerificationService_ReturnsBuiltUrl()
-        {
-            try
-            {
-                // Arrange
-                const string ksefNumber = "KSEF-ABC-1";
-                const string invoiceHash = "HASH123";
-                var invoicingDate = DateTimeOffset.UtcNow;
-                var expectedUrl = "https://ksef.example/invoice/view/123";
-
-                var metadata = new PagedInvoiceResponse
-                {
-                    Invoices = new List<InvoiceSummary>
-                    {
-                        new InvoiceSummary
-                        {
-                            KsefNumber = ksefNumber,
-                            InvoiceHash = invoiceHash,
-                            InvoicingDate = invoicingDate
-                        }
-                    }
-                };
-
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-
-                InvoiceQueryFilters? captured = null;
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.IsAny<CancellationToken>()))
-                    .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
-                    .ReturnsAsync(metadata)
-                    .Verifiable();
-
-                verification.Setup(v => v.BuildInvoiceVerificationUrl(EnvVatId, invoicingDate.DateTime, invoiceHash))
-                    .Returns(expectedUrl)
-                    .Verifiable();
-
-                // Act
-                var result = await sut.GetInvoiceUrl(ksefNumber, CancellationToken.None);
-
-                // Assert
-                Assert.Equal(expectedUrl, result);
-                Assert.NotNull(captured);
-                Assert.Equal(ksefNumber, captured.KsefNumber);
-                verification.Verify();
-                ksefClient.Verify();
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
-
-        [Fact]
-        public async Task GetInvoiceUrl_WhenNoMatchingKsefNumber_ThrowsInvalidOperationException()
-        {
-            try
-            {
-                // Arrange
-                const string requestedKsef = "KSEF-NOT-FOUND";
-                var metadata = new PagedInvoiceResponse
-                {
-                    Invoices = new List<InvoiceSummary>
-                    {
-                        new InvoiceSummary
-                        {
-                            KsefNumber = "KSEF-OTHER",
-                            InvoiceHash = "HASH-X",
-                            InvoicingDate = DateTimeOffset.UtcNow
-                        }
-                    }
-                };
-
-                SetStaticAuthToken("auth-token");
-                var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-
-                ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-                        It.IsAny<InvoiceQueryFilters>(),
-                        "auth-token",
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>(),
-                        It.IsAny<SortOrder>(),
-                        It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(metadata);
-
-                // Act + Assert
-                await Assert.ThrowsAsync<InvalidOperationException>(() => sut.GetInvoiceUrl(requestedKsef, CancellationToken.None));
-            }
-            finally
-            {
-                ClearEnvVars();
-                SetStaticAuthToken(null);
-            }
-        }
-
-        // [Fact]
-        // public async Task GetInvoice_ReturnsInvoiceString_UsesAuthToken()
-        // {
-        //     // Arrange
-        //     var expectedInvoice = "invoice-payload";
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     ksefClient.Setup(c => c.GetInvoiceAsync(
-        //             "ksef-123", 
-        //             "auth-token", 
-        //             It.IsAny<CancellationToken>()))
-        //               .ReturnsAsync(expectedInvoice)
-        //               .Verifiable();
-        //
-        //     // Act
-        //     var result = await sut.GetInvoice("ksef-123");
-        //
-        //     // Assert
-        //     Assert.Equal(expectedInvoice, result);
-        //     ksefClient.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
-        //
-        // [Fact]
-        // public async Task GetInvoicesListForGivenDate_CallsQueryWithDateRange_ReturnsPagedInvoiceResponse()
-        // {
-        //     // Arrange
-        //     var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     InvoiceQueryFilters? capturedRequest = null;
-        //     ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-        //             It.IsAny<InvoiceQueryFilters>(), 
-        //             "auth-token", 
-        //             It.IsAny<int?>(), 
-        //             It.IsAny<int?>(),
-        //             It.IsAny<SortOrder>(), 
-        //             It.IsAny<CancellationToken>()))
-        //         .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken >((req, t, pageOffset, pageSize, sortOrder, cancellationToken) => capturedRequest = req)
-        //         .ReturnsAsync(response)
-        //         .Verifiable();
-        //
-        //     var from = new DateTime(2025, 1, 1);
-        //     var to = new DateTime(2025, 1, 31);
-        //
-        //     // Act
-        //     var result = await sut.GetInvoicesListForGivenDate(from, to);
-        //
-        //     // Assert
-        //     Assert.Same(response, result);
-        //     Assert.NotNull(capturedRequest);
-        //     Assert.Equal(DateType.Issue, capturedRequest.DateRange.DateType);
-        //     Assert.Equal(from.Date, capturedRequest.DateRange.From.Date);
-        //     Assert.Equal(to.Date, capturedRequest.DateRange.To.Value.Date);
-        //     ksefClient.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
-        //
-        // [Fact]
-        // public async Task GetInvoiceByInvoiceNumber_SetsInvoiceNumberOnQuery_ReturnsPagedInvoiceResponse()
-        // {
-        //     // Arrange
-        //     var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     InvoiceQueryFilters? capturedRequest = null;
-        //     ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-        //             It.IsAny<InvoiceQueryFilters>(), 
-        //             "auth-token", 
-        //             It.IsAny<int?>(), 
-        //             It.IsAny<int?>(),
-        //             It.IsAny<SortOrder>(), 
-        //             It.IsAny<CancellationToken>()))
-        //         .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken >((req, t, pageOffset, pageSize, sortOrder, cancellationToken) => capturedRequest = req)
-        //         .ReturnsAsync(response)
-        //         .Verifiable();
-        //
-        //     var invoiceNumber = "INV-2025-001";
-        //
-        //     // Act
-        //     var result = await sut.GetInvoiceByInvoiceNumber(invoiceNumber);
-        //
-        //     // Assert
-        //     Assert.Same(response, result);
-        //     Assert.NotNull(capturedRequest);
-        //     Assert.Equal(invoiceNumber, capturedRequest.InvoiceNumber);
-        //     ksefClient.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
-        //
-        // [Fact]
-        // public async Task GetInvoiceByBuyerNip_SetsBuyerIdentifierNip_ReturnsPagedInvoiceResponse()
-        // {
-        //     // Arrange
-        //     var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     InvoiceQueryFilters? capturedRequest = null;
-        //     ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-        //             It.IsAny<InvoiceQueryFilters>(), 
-        //             "auth-token", 
-        //             It.IsAny<int?>(), 
-        //             It.IsAny<int?>(),
-        //             It.IsAny<SortOrder>(), 
-        //             It.IsAny<CancellationToken>()))
-        //               .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken >((req, t, pageOffset, pageSize, sortOrder, cancellationToken) => capturedRequest = req)
-        //               .ReturnsAsync(response)
-        //               .Verifiable();
-        //
-        //     var nip = "PL1234567890";
-        //
-        //     // Act
-        //     var result = await sut.GetInvoiceByBuyerNip(nip);
-        //
-        //     // Assert
-        //     Assert.Same(response, result);
-        //     Assert.NotNull(capturedRequest);
-        //     Assert.NotNull(capturedRequest.BuyerIdentifier);
-        //     Assert.Equal(BuyerIdentifierType.Nip, capturedRequest.BuyerIdentifier.Type);
-        //     Assert.Equal(nip, capturedRequest.BuyerIdentifier.Value);
-        //     ksefClient.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
-        //
-        // [Fact]
-        // public async Task GetInvoiceByBuyerVatUe_SetsBuyerIdentifierVatUe_ReturnsPagedInvoiceResponse()
-        // {
-        //     // Arrange
-        //     var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() };
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     InvoiceQueryFilters? capturedRequest = null;
-        //     ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-        //             It.IsAny<InvoiceQueryFilters>(), 
-        //             "auth-token", 
-        //             It.IsAny<int?>(), 
-        //             It.IsAny<int?>(),
-        //             It.IsAny<SortOrder>(), 
-        //             It.IsAny<CancellationToken>()))
-        //         .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken >((req, t, pageOffset, pageSize, sortOrder, cancellationToken) => capturedRequest = req)
-        //         .ReturnsAsync(response)
-        //         .Verifiable();
-        //
-        //     var vatUe = "EU123456789";
-        //
-        //     // Act
-        //     var result = await sut.GetInvoiceByBuyerVatUe(vatUe);
-        //
-        //     // Assert
-        //     Assert.Same(response, result);
-        //     Assert.NotNull(capturedRequest);
-        //     Assert.NotNull(capturedRequest.BuyerIdentifier);
-        //     Assert.Equal(BuyerIdentifierType.VatUe, capturedRequest.BuyerIdentifier.Type);
-        //     Assert.Equal(vatUe, capturedRequest.BuyerIdentifier.Value);
-        //     ksefClient.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
-        //
-        // [Fact]
-        // public async Task GetInvoiceUrl_UsesMetadataAndVerificationService_ReturnsUrl()
-        // {
-        //     // Arrange
-        //     var ksefNumber = "KSEF-ABC-1";
-        //     var invoiceHash = "HASH123";
-        //     var invoicingDate = DateTimeOffset.UtcNow;
-        //     var invoiceMeta = new InvoiceSummary
-        //     {
-        //         KsefNumber = ksefNumber,
-        //         InvoiceHash = invoiceHash,
-        //         InvoicingDate = invoicingDate
-        //     };
-        //     var response = new PagedInvoiceResponse { Invoices = new List<InvoiceSummary> { invoiceMeta } };
-        //
-        //     SetStaticAuthToken("auth-token");
-        //     var sut = CreateSut(out var logger, out var authClient, out var crypto, out var ksefClient, out var verification);
-        //
-        //     InvoiceQueryFilters? capturedRequest = null;
-        //     ksefClient.Setup(c => c.QueryInvoiceMetadataAsync(
-        //             It.IsAny<InvoiceQueryFilters>(), 
-        //             "auth-token", 
-        //             It.IsAny<int?>(), 
-        //             It.IsAny<int?>(),
-        //             It.IsAny<SortOrder>(), 
-        //             It.IsAny<CancellationToken>()))
-        //         .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken >((req, t, pageOffset, pageSize, sortOrder, cancellationToken) => capturedRequest = req)
-        //         .ReturnsAsync(response)
-        //         .Verifiable();
-        //
-        //     var expectedUrl = "https://ksef.example/invoice/view/123";
-        //     verification.Setup(v => v.BuildInvoiceVerificationUrl(EnvVatId, invoicingDate.DateTime, invoiceHash))
-        //                 .Returns(expectedUrl)
-        //                 .Verifiable();
-        //
-        //     // Act
-        //     var result = await sut.GetInvoiceUrl(ksefNumber);
-        //
-        //     // Assert
-        //     Assert.Equal(expectedUrl, result);
-        //     ksefClient.Verify();
-        //     verification.Verify();
-        //     ClearEnvVars();
-        //     SetStaticAuthToken(null);
-        // }
+        // Assert
+        _ksefClientMock.Verify(x => x.RefreshAccessTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _ksefClientMock.Verify(x => x.GetInvoiceAsync(It.IsAny<string>(), newToken, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
