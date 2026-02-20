@@ -18,7 +18,6 @@ public class KsefTools : IKsefTools
 {
     private readonly ILogger<KsefTools> _logger;
     private readonly string? _vatId;
-    //private static string? _authToken;
     private static AuthenticationOperationStatusResponse? _authenticationResponse;
     private readonly IAuthorizationClient _authorizationClient;
     private readonly ICryptographyService _cryptographyService;
