@@ -1,5 +1,8 @@
 ﻿using System.ComponentModel;
+using System.Drawing;
+using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using KSeF.Client.Api.Builders.Auth;
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces.Clients;
@@ -7,7 +10,10 @@ using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using KSeF.Client.Core.Models.QRCode;
 using McpKsef.HybridApp.Helpers;
+using Microsoft.Extensions.AI;
+using ModelContextProtocol.Protocol;
 using Shared.Consts;
 using ModelContextProtocol.Server;
 
@@ -159,6 +165,50 @@ public class KsefTools : IKsefTools
         var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(_vatId, invoicingDate.DateTime, invoiceHash);
         
         return invoiceForOnlineUrl;
+    }
+    
+    [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
+    [Description("Zwraca qr kod do faktury po numerze ksef")]
+    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber}");
+        
+        var url = await GetInvoiceUrl(ksefNumber, cancellationToken);
+        if (string.IsNullOrEmpty(url)) return GetErroredContentInfo($"Nie udało się pobrać danych dla numeru KSeF: {ksefNumber}");
+        
+        var qrCode = QrCodeService.GenerateQrCode(url);
+        if (qrCode == null) return GetErroredContentInfo($"Nie udało wygenerować kodu QR dla numeru KSeF: {ksefNumber}");
+        
+        var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, ksefNumber);
+        if (labeledQr == null) return GetErroredContentInfo($"Nie udało podpisać QR kody numerem KSeF: {ksefNumber}");
+        
+        var imageBase64 = Convert.ToBase64String(labeledQr);
+
+        var contents = new List<ContentBlock>
+        {
+            new ImageContentBlock
+            {
+                Data = imageBase64,
+                MimeType = "image/png",
+                Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f }
+            }
+        };
+
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {imageBase64.Length} bytes");
+        return contents;
+    }
+    
+  
+    private static List<ContentBlock> GetErroredContentInfo(string errorInfo)
+    {
+        var contents = new List<ContentBlock>
+        {
+            new TextContentBlock {
+                Text = errorInfo,
+                Annotations = new Annotations { Audience = [Role.User], Priority = 0.7f }
+            }
+        };
+        return contents;
     }
 
     private static DateRange GetMaxDataRange()
