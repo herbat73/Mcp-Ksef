@@ -157,6 +157,8 @@ public class KsefTools : IKsefTools
                     requestPayload: invoiceMetadataQueryRequest,
                     accessToken: _authenticationResponse?.AccessToken.Token,
                     cancellationToken: cancellationToken);
+
+        if (metadata == null || !metadata.Invoices.Any()) return string.Empty;
         
         var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
         var invoiceHash = invoiceMetadata.InvoiceHash;

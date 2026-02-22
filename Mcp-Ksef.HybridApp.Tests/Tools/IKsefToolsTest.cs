@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using KSeF.Client.Core.Models.Invoices;
+using ModelContextProtocol.Protocol;
 
 namespace McpKsef.HybridApp.Tools.Tests
 {
@@ -103,6 +104,20 @@ namespace McpKsef.HybridApp.Tools.Tests
                 ("ksefNumber", typeof(string)),
                 ("cancellationToken", typeof(CancellationToken)));
         }
+        
+        [Fact]
+        public void GetInvoiceQrWithKsef_MethodExists_WithCancellationToken_ReturnsTaskOfString()
+        {
+            var t = typeof(IKsefTools);
+            var m = t.GetMethod(
+                nameof(IKsefTools.GetInvoiceQrWithKsef),
+                [typeof(string), typeof(CancellationToken)]);
+
+            AssertReturnsTaskOf(m!, typeof(IEnumerable<ContentBlock>));
+            AssertMethodParameters(m!,
+                ("ksefNumber", typeof(string)),
+                ("cancellationToken", typeof(CancellationToken)));
+        }
 
         [Fact]
         public void Interface_HasExpectedMethodSet_AndExactSignatures()
@@ -110,7 +125,7 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var methods = t.GetMethods();
 
-            Assert.Equal(6, methods.Length);
+            Assert.Equal(7, methods.Length);
 
             var expected = new Dictionary<string, Type[]>
             {
@@ -119,7 +134,8 @@ namespace McpKsef.HybridApp.Tools.Tests
                 [nameof(IKsefTools.GetInvoiceByInvoiceNumber)] = [typeof(string), typeof(CancellationToken)],
                 [nameof(IKsefTools.GetInvoiceByBuyerNip)] = [typeof(string), typeof(CancellationToken)],
                 [nameof(IKsefTools.GetInvoiceByBuyerVatUe)] = [typeof(string), typeof(CancellationToken)],
-                [nameof(IKsefTools.GetInvoiceUrl)] = [typeof(string), typeof(CancellationToken)]
+                [nameof(IKsefTools.GetInvoiceUrl)] = [typeof(string), typeof(CancellationToken)],
+                [nameof(IKsefTools.GetInvoiceQrWithKsef)] = [typeof(string), typeof(CancellationToken)]
             };
 
             foreach (var (name, signature) in expected)
