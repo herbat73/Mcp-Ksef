@@ -19,6 +19,19 @@ RUN case "$TARGETARCH" in \
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS final
 
+ARG APP_VERSION
+
+RUN echo "Setting image version: $APP_VERSION"
+
+LABEL version="${APP_VERSION}"
+LABEL release="mcp-ksef"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.title="mcp-ksef"
+LABEL org.opencontainers.image.description="Serwer MCP dla KSeF"
+LABEL org.opencontainers.image.url="https://github.com/herbat73/Mcp-Ksef"
+LABEL org.opencontainers.image.source="https://github.com/herbat73/Mcp-Ksef"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 COPY --from=build /app .
