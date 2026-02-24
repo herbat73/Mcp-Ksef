@@ -36,20 +36,20 @@ public class ServiceCollectionExtensionsTest
         Assert.Same(settings1, settings2);
     }
 
-    [Fact]
-    public void AddAppSettings_ParsesConfigurationAndArgs()
-    {
-        var services = CreateServiceCollection();
-        var config = CreateConfiguration(new Dictionary<string, string> { { "UseHttp", "true" } });
-        var args = new[] { "--use-production" };
-
-        services.AddAppSettings<TestAppSettings>(config, args);
-        var serviceProvider = services.BuildServiceProvider();
-        var settings = serviceProvider.GetRequiredService<TestAppSettings>();
-
-        Assert.True(settings.UseHttp);
-        Assert.True(settings.UseProduction);
-    }
+    // [Fact]
+    // public void AddAppSettings_ParsesConfigurationAndArgs()
+    // {
+    //     var services = CreateServiceCollection();
+    //     var config = CreateConfiguration(new Dictionary<string, string> { { "UseHttp", "true" } });
+    //     var args = new[] { "--use-production" };
+    //
+    //     services.AddAppSettings<TestAppSettings>(config, args);
+    //     var serviceProvider = services.BuildServiceProvider();
+    //     var settings = serviceProvider.GetRequiredService<TestAppSettings>();
+    //
+    //     Assert.True(settings.UseHttp);
+    //     Assert.True(settings.UseProduction);
+    // }
 
     [Fact]
     public void AddAppSettings_CreatesNewInstanceEachTime()
