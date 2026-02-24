@@ -179,4 +179,146 @@ public class RunInfoHelperTest
         Assert.Contains(Shared.Consts.EnvironmentConsts.VatId, output);
         Assert.DoesNotContain("Zmienne połączenia ustawione poprawnie", output);
     }
+
+    [Fact]
+    public void EmptyStringToken_EmptyStringVatId_BothInvalid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "",
+            vatId: "");
+
+        Assert.False(result.IsKsefTokenValid);
+        Assert.False(result.IsVatIdValid);
+        Assert.False(result.IsValid);
+        Assert.Contains(Shared.Consts.EnvironmentConsts.VatId, output);
+    }
+
+    [Fact]
+    public void WhitespaceToken_TreatsAsValid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "   ",
+            vatId: "1234567890");
+
+        Assert.True(result.IsKsefTokenValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void OnlyCertFileExists_NoKeyFile_CertificateInvalid()
+    {
+        var tempCert = Path.GetTempFileName();
+        File.WriteAllText(tempCert, "cert content");
+
+        try
+        {
+            var (result, output) = RunWithEnv(
+                certFilePath: tempCert,
+                keyFilePath: Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()),
+                privateKeyPassword: "password");
+
+            Assert.False(result.IsKsefCertificateValid);
+        }
+        finally
+        {
+            if (File.Exists(tempCert))
+                File.Delete(tempCert);
+        }
+    }
+
+    [Fact]
+    public void OnlyKeyFileExists_NoCertFile_CertificateInvalid()
+    {
+        var tempKey = Path.GetTempFileName();
+        File.WriteAllText(tempKey, "key content");
+
+        try
+        {
+            var (result, output) = RunWithEnv(
+                certFilePath: Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()),
+                keyFilePath: tempKey,
+                privateKeyPassword: "password");
+
+            Assert.False(result.IsKsefCertificateValid);
+        }
+        finally
+        {
+            if (File.Exists(tempKey))
+                File.Delete(tempKey);
+        }
+    }
+
+    [Fact]
+    public void BothTokenAndCert_BothValid_PrefersCertForMessage()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "test-token",
+            vatId: "1234567890",
+            createCertFiles: true,
+            privateKeyPassword: "password");
+
+        Assert.True(result.IsKsefTokenValid);
+        Assert.True(result.IsKsefCertificateValid);
+        Assert.True(result.IsVatIdValid);
+        Assert.True(result.IsValid);
+        Assert.Contains("certyfikat KSeF", output);
+    }
+
+    [Fact]
+    public void CertFilesExist_PasswordEmpty_CertificateInvalid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: null,
+            vatId: "1234567890",
+            createCertFiles: true,
+            privateKeyPassword: "");
+
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.Contains(Shared.Consts.EnvironmentConsts.KsefPrivateKeyPassword, output);
+    }
+
+    [Fact]
+    public void OnlyVatIdMissing_BothCertAndTokenPresent_OverallInvalid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "test-token",
+            vatId: null,
+            createCertFiles: true,
+            privateKeyPassword: "password");
+
+        Assert.True(result.IsKsefCertificateValid);
+        Assert.True(result.IsKsefTokenValid);
+        Assert.False(result.IsVatIdValid);
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void PartialCertConfig_OnlyTokenAndPassword_NoCert_CertificateInvalid()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "test-token",
+            certFilePath: null,
+            keyFilePath: Path.GetTempFileName(),
+            privateKeyPassword: "password",
+            vatId: "1234567890");
+
+        Assert.False(result.IsKsefCertificateValid);
+        Assert.True(result.IsKsefTokenValid);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void ErrorMessagesNotShownWhenTokenOnly()
+    {
+        var (result, output) = RunWithEnv(
+            ksefToken: "valid-token",
+            vatId: "1234567890",
+            createCertFiles: false,
+            certFilePath: null,
+            keyFilePath: null);
+
+        Assert.False(output.Contains("Zmienne środowiskowe niezbędne"));
+        Assert.True(output.Contains("poprawnie"));
+    }
 }
