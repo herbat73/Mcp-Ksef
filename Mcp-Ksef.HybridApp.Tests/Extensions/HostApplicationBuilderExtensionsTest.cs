@@ -12,7 +12,7 @@ public class HostApplicationBuilderExtensionsTest
 {
     private IHostApplicationBuilder CreateBuilder(string[] args = null)
     {
-        args ??= Array.Empty<string>();
+        args ??= [];
         return Host.CreateApplicationBuilder(args);
     }
 
@@ -30,8 +30,8 @@ public class HostApplicationBuilderExtensionsTest
     [Fact]
     public void BuildApp_WithStreamableHttp_ReturnsWebApplication()
     {
-        var webBuilder = WebApplication.CreateBuilder(new string[] { });
-        var builder = (IHostApplicationBuilder)webBuilder;
+        var webBuilder = WebApplication.CreateBuilder([]);
+        IHostApplicationBuilder builder = webBuilder;
 
         var app = builder.BuildApp(true);
 
@@ -52,8 +52,8 @@ public class HostApplicationBuilderExtensionsTest
     [Fact]
     public void BuildApp_WithStreamableHttp_RegistersOpenApiEndpoints()
     {
-        var webBuilder = WebApplication.CreateBuilder(new string[] { });
-        var builder = (IHostApplicationBuilder)webBuilder;
+        var webBuilder = WebApplication.CreateBuilder([]);
+        IHostApplicationBuilder builder = webBuilder;
 
         var app = builder.BuildApp(true);
 

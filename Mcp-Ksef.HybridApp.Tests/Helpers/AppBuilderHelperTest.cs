@@ -41,19 +41,6 @@ public class AppBuilderHelperTest
         Assert.NotNull(builder);
     }
 
-    // [Fact]
-    // public void Setup_RegistersAppSettings()
-    // {
-    //     var args = Array.Empty<string>();
-    //
-    //     var builder = AppBuilderHelper.Setup(false, args);
-    //     var host = builder.BuildApp(true);
-    //     var settings = host.Services.GetService(typeof(KsefAppSettings));
-    //
-    //     Assert.NotNull(settings);
-    //     Assert.IsType<KsefAppSettings>(settings);
-    // }
-
     [Fact]
     public void Setup_ConfiguresLogging()
     {
@@ -90,15 +77,15 @@ public class AppBuilderHelperTest
         Assert.Same(settings1, settings2);
     }
 
-    // [Fact]
-    // public void Setup_WithHttpArgument_PassedToAppSettings()
-    // {
-    //     var args = new[] { "--http" };
-    //
-    //     var builder = AppBuilderHelper.Setup(false, args);
-    //     var serviceProvider = builder.Services.BuildServiceProvider();
-    //     var settings = serviceProvider.GetRequiredService<KsefAppSettings>();
-    //
-    //     Assert.True(settings.UseHttp);
-    // }
+    [Fact]
+    public void Setup_WithHttpArgument_PassedToAppSettings()
+    {
+        var args = new[] { "--http" };
+    
+        var builder = AppBuilderHelper.Setup(false, args);
+        var serviceProvider = builder.Services.BuildServiceProvider();
+        var settings = serviceProvider.GetRequiredService<KsefAppSettings>();
+    
+        Assert.True(settings.UseHttp);
+    }
 }
