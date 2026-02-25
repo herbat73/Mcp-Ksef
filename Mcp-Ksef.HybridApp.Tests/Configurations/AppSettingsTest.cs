@@ -17,7 +17,7 @@ public class AppSettingsTest
     public void Parse_NoArgsWithDefaultConfig_ReturnsDefaultSettings()
     {
         var config = CreateConfiguration(new Dictionary<string, string>());
-        var args = new string[] { };
+        var args = Array.Empty<string>();
 
         var settings = AppSettings.Parse<TestAppSettings>(config, args);
 
@@ -27,27 +27,27 @@ public class AppSettingsTest
         Assert.False(settings.Help);
     }
 
-    //[Fact]
-    // public void Parse_WithHttpArgument_SetsUseHttpTrue()
-    // {
-    //     var config = CreateConfiguration(new Dictionary<string, string>());
-    //     var args = new[] { "--http" };
-    //
-    //     var settings = AppSettings.Parse<TestAppSettings>(config, args);
-    //
-    //     Assert.True(settings.UseHttp);
-    // }
+    [Fact]
+     public void Parse_WithHttpArgument_SetsUseHttpTrue()
+     {
+         var config = CreateConfiguration(new Dictionary<string, string>());
+         var args = new[] { "--http" };
+    
+         var settings = AppSettings.Parse<TestAppSettings>(config, args);
+    
+         Assert.True(settings.UseHttp);
+     }
 
-    // [Fact]
-    // public void Parse_WithUseProductionArgument_SetsUseProductionTrue()
-    // {
-    //     var config = CreateConfiguration(new Dictionary<string, string>());
-    //     var args = new[] { "--use-production" };
-    //
-    //     var settings = AppSettings.Parse<TestAppSettings>(config, args);
-    //
-    //     Assert.True(settings.UseProduction);
-    // }
+    [Fact]
+    public void Parse_WithUseProductionArgument_SetsUseProductionTrue()
+    {
+        var config = CreateConfiguration(new Dictionary<string, string>());
+        var args = new[] { "--use-production" };
+    
+        var settings = AppSettings.Parse<TestAppSettings>(config, args);
+    
+        Assert.True(settings.UseProduction);
+    }
 
     [Fact]
     public void Parse_WithHelpArgument_SetsHelpTrue()

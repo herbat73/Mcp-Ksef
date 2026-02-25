@@ -75,12 +75,6 @@ public abstract class AppSettings
             return settings;
         }
 
-        if (args.Length == 1)
-        {
-            settings.Help = true;
-            return settings;
-        }
-
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
