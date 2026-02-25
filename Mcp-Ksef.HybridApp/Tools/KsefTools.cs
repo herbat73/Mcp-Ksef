@@ -1,8 +1,5 @@
 ﻿using System.ComponentModel;
-using System.Drawing;
-using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using KSeF.Client.Api.Builders.Auth;
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces.Clients;
@@ -10,9 +7,7 @@ using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
-using KSeF.Client.Core.Models.QRCode;
 using McpKsef.HybridApp.Helpers;
-using Microsoft.Extensions.AI;
 using ModelContextProtocol.Protocol;
 using Shared.Consts;
 using ModelContextProtocol.Server;
@@ -276,7 +271,7 @@ public class KsefTools : IKsefTools
         var signedXml = SignatureService.Sign(unsignedXml, certificate);
 
         var authSubmission = await _authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken);
+            .SubmitXadesAuthRequestAsync(signedXml, false, false, cancellationToken);
 
         AuthStatus authStatus;
         var startTime = DateTime.UtcNow;

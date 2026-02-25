@@ -13,8 +13,8 @@
   
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
-    <PackageReference Include="ksef.client" Version="2.0.1" />
-    <PackageReference Include="ksef.client.core" Version="2.0.1" />
+    <PackageReference Include="ksef.client" Version="2.1.2" />
+    <PackageReference Include="ksef.client.core" Version="2.1.2" />
   </ItemGroup>
 
 </Project>
