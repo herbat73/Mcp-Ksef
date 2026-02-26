@@ -2,6 +2,7 @@ using KSeF.Client.DI;
 using Shared.Configurations;
 using Shared.Extensions;
 using McpKsef.HybridApp.Helpers;
+using McpKsef.HybridApp.Services;
 using Shared.Consts;
 
 if (!RunInfoHelper.CheckEnvironmentConsts().IsValid) return;
@@ -33,7 +34,10 @@ builder.Services.AddKSeFClient(options =>
     options.SupportedCultures = (builder.Configuration.GetSection("ApiSettings").GetSection("SupportedCultures").Get<string[]>() ?? null)!;
     options.SupportedUICultures = (builder.Configuration.GetSection("ApiSettings").GetSection("SupportedUICultures").Get<string[]>() ?? null)!;
 });
+
 builder.Services.AddCryptographyClient();
+builder.Services.AddSingleton<AuthenticationResponse>();
+builder.Services.AddScoped<IKsefAuthorizationService, KsefAuthorizationService>();
 
 var app = builder.BuildApp(useStreamableHttp);
 
