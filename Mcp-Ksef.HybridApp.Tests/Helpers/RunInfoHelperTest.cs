@@ -318,7 +318,7 @@ public class RunInfoHelperTest
             certFilePath: null,
             keyFilePath: null);
 
-        Assert.False(output.Contains("Zmienne środowiskowe niezbędne"));
-        Assert.True(output.Contains("poprawnie"));
+        Assert.DoesNotContain(output, "Zmienne środowiskowe niezbędne");
+        Assert.Contains(output, "poprawnie");
     }
 }

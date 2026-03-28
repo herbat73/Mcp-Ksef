@@ -512,7 +512,7 @@ public class KsefToolsTest : IDisposable
         Assert.IsType<ImageContentBlock>(contentList[0]);
         var imageContent = (ImageContentBlock)contentList[0];
         Assert.Equal("image/png", imageContent.MimeType);
-        Assert.NotEmpty(imageContent.Data);
+        Assert.True(imageContent.Data.Length>0);
     }
     
     [Fact]

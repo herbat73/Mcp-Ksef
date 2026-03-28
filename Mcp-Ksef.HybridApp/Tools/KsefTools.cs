@@ -172,19 +172,17 @@ public class KsefTools : IKsefTools
         var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, ksefNumber);
         if (labeledQr.Length == 0) return GetErroredContentInfo($"Nie udało podpisać QR kody numerem KSeF: {ksefNumber}");
         
-        var imageBase64 = Convert.ToBase64String(labeledQr);
-
         var contents = new List<ContentBlock>
         {
             new ImageContentBlock
             {
-                Data = imageBase64,
+                Data = labeledQr,
                 MimeType = "image/png",
                 Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f }
             }
         };
 
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {imageBase64.Length} bytes");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {labeledQr.Length} bytes");
         return contents;
     }
     
