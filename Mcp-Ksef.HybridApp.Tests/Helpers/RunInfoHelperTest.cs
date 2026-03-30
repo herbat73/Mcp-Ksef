@@ -318,7 +318,7 @@ public class RunInfoHelperTest
             certFilePath: null,
             keyFilePath: null);
 
-        Assert.DoesNotContain(output, "Zmienne środowiskowe niezbędne");
-        Assert.Contains(output, "poprawnie");
+        Assert.DoesNotContain("Zmienne środowiskowe niezbędne", output);
+        Assert.Contains("Zmienne połączenia ustawione poprawnie. Zostanie użyty token KSeF do nawiązania połączenia", output);
     }
 }
