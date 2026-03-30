@@ -10,6 +10,13 @@ public interface IKsefTools
         DateTime dataFakturyOd,
         DateTime dataFakturyDo,
         CancellationToken cancellationToken);
+    Task<PagedInvoiceResponse> QueryInvoices(
+        DateTime dataFakturyOd,
+        DateTime dataFakturyDo,
+        CancellationToken cancellationToken,
+        InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        DateType dateType = DateType.Issue
+    );
     Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken);
     Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken);
     Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken);

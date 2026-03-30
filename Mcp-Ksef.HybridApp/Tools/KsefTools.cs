@@ -65,6 +65,33 @@ public class KsefTools : IKsefTools
         return invoiceList;
     }
     
+    [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
+    [Description("Pobiera listę faktur z podanego okresu z systemu ksef na podstawie zapytania")]
+    public async Task<PagedInvoiceResponse> QueryInvoices(
+        [Description("Data wystawienia faktury od")] DateTime dataFakturyOd,
+        [Description("Data wystawienia faktury do")] DateTime dataFakturyDo,
+        CancellationToken cancellationToken,
+        [Description("InvoiceSubjectType")] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description("DateType")] DateType dateType = DateType.Issue)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(QueryInvoices)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo} invoiceSubjectType {invoiceSubjectType} dateType {dateType}");
+        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+
+        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
+        {
+            SubjectType = invoiceSubjectType,
+            DateRange = new DateRange
+            {
+                From = dataFakturyOd,
+                To = dataFakturyDo,
+                DateType = dateType
+            }
+        };
+        
+        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
+        return invoiceList;
+    }
+    
     [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
     [Description("Pobiera fakturę wg numeru faktury")]
     public async Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury")] string invoiceNumber, CancellationToken cancellationToken)
