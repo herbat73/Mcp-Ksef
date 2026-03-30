@@ -40,31 +40,6 @@ public class KsefTools : IKsefTools
         return invoice;
     }
     
-    [McpServerTool(Name = "get_invoices_for_period", Title = "Pobierz faktury podanego okresu")]
-    [Description("Pobiera listę faktur z podanego okresu z systemu ksef")]
-    public async Task<PagedInvoiceResponse> GetInvoicesListForGivenDate(
-        [Description("Data wystawienia faktury od")] DateTime dataFakturyOd,
-        [Description("Data wystawienia faktury do")] DateTime dataFakturyDo,
-        CancellationToken cancellationToken)
-    {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoicesListForGivenDate)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-
-        var invoiceMetadataQueryRequest = new InvoiceQueryFilters
-        {
-            SubjectType = InvoiceSubjectType.Subject1,
-            DateRange = new DateRange
-            {
-                From = dataFakturyOd,
-                To = dataFakturyDo,
-                DateType = DateType.Issue
-            }
-        };
-        
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-        return invoiceList;
-    }
-    
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
     [Description("Pobiera listę faktur z podanego okresu z systemu ksef na podstawie zapytania")]
     public async Task<PagedInvoiceResponse> QueryInvoices(

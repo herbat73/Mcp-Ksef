@@ -113,7 +113,7 @@ public class KsefToolsTest : IDisposable
     
         var service = CreateService();
     
-        var result = await service.GetInvoicesListForGivenDate(fromDate, toDate, CancellationToken.None);
+        var result = await service.QueryInvoices(fromDate, toDate, CancellationToken.None);
     
         Assert.Equal(2, result.Invoices.Count);
         _authorizationServiceMock.Verify(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()), Times.Once);
@@ -148,7 +148,7 @@ public class KsefToolsTest : IDisposable
     
         var service = CreateService();
     
-        var result = await service.GetInvoicesListForGivenDate(singleDate, singleDate, CancellationToken.None);
+        var result = await service.QueryInvoices(singleDate, singleDate, CancellationToken.None);
     
         Assert.Equal(2, result.Invoices.Count);
         _authorizationServiceMock.Verify(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()), Times.Once);
@@ -644,7 +644,7 @@ public class KsefToolsTest : IDisposable
     
         var service = CreateService();
     
-        var result = await service.GetInvoicesListForGivenDate(futureStart, futureEnd, CancellationToken.None);
+        var result = await service.QueryInvoices(futureStart, futureEnd, CancellationToken.None);
     
         Assert.NotNull(result);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
