@@ -143,12 +143,18 @@ public class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
+        _logger.LogDebug($"invoiceMetadataQueryRequest created for ksefNumber: {ksefNumber} DateRange from {invoiceMetadataQueryRequest.DateRange.From} to {invoiceMetadataQueryRequest.DateRange.To}");
+        
         var metadata = await _ksefClient.QueryInvoiceMetadataAsync(
                     requestPayload: invoiceMetadataQueryRequest,
                     accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
                     cancellationToken: cancellationToken);
-
-        if (metadata == null || !metadata.Invoices.Any()) return string.Empty;
+        
+        if (metadata == null || !metadata.Invoices.Any())
+        {
+            _logger.LogWarning("retuned metadata is null");
+            return string.Empty;
+        }
         
         var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
         var invoiceHash = invoiceMetadata.InvoiceHash;
