@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Text.RegularExpressions;
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
@@ -11,13 +12,14 @@ using ModelContextProtocol.Server;
 namespace McpKsef.HybridApp.Tools;
 
 [McpServerToolType]
-public class KsefTools : IKsefTools
+public partial class KsefTools : IKsefTools
 {
     private readonly ILogger<KsefTools> _logger;
     private readonly string? _vatId;
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
+    private const string KSEF_ERROR = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF";
     
     public KsefTools(ILogger<KsefTools> logger, IKsefAuthorizationService ksefAuthorization, IKSeFClient ksefClient, IVerificationLinkService verificationLinkService)
     {
@@ -144,12 +146,22 @@ public class KsefTools : IKsefTools
         };
         
         _logger.LogDebug($"invoiceMetadataQueryRequest created for ksefNumber: {ksefNumber} DateRange from {invoiceMetadataQueryRequest.DateRange.From} to {invoiceMetadataQueryRequest.DateRange.To}");
+
+        PagedInvoiceResponse metadata;
         
-        var metadata = await _ksefClient.QueryInvoiceMetadataAsync(
-                    requestPayload: invoiceMetadataQueryRequest,
-                    accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
-                    cancellationToken: cancellationToken);
-        
+        try
+        {
+            metadata = await _ksefClient.QueryInvoiceMetadataAsync(
+                requestPayload: invoiceMetadataQueryRequest,
+                accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invoice metadata");
+            return ex is KSeF.Client.Core.Exceptions.KsefRateLimitException ? ex.Message : KSEF_ERROR;
+        }
+
         if (metadata == null || !metadata.Invoices.Any())
         {
             _logger.LogWarning("retuned metadata is null");
@@ -185,13 +197,28 @@ public class KsefTools : IKsefTools
             new ImageContentBlock
             {
                 Data = labeledQr,
-                MimeType = "image/png",
+                MimeType = "image/png;base64",
                 Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f }
             }
         };
 
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {labeledQr.Length} bytes");
         return contents;
+    }
+
+    private static string ConvertToBase64IfNeeded(string originalString)
+    {
+        if (IsBase64String(originalString)) return originalString;
+        
+        var bytes = System.Text.Encoding.UTF8.GetBytes(originalString);
+        var base64String = Convert.ToBase64String(bytes);
+        
+        return base64String;
+    }
+    
+    private static bool IsBase64String(string input)
+    {
+        return (input.Length % 4 == 0) && Base64Regex().IsMatch(input);
     }
     
     private static List<ContentBlock> GetErroredContentInfo(string errorInfo)
@@ -215,5 +242,8 @@ public class KsefTools : IKsefTools
             DateType = DateType.Issue
         };
     }
+
+    [GeneratedRegex(@"^[a-zA-Z0-9\+/]*={0,3}$", RegexOptions.None)]
+    private static partial Regex Base64Regex();
 }
 
