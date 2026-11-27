@@ -20,6 +20,8 @@ public partial class KsefTools : IKsefTools
     private readonly IKsefAuthorizationService _ksefAuthorization;
     private const string LookupScopeDescription = "Przeszukuje tylko faktury wystawione przez nasz podmiot (sprzedażowe) z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
     private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wynik zawiera tylko pierwszą stronę: HasMore = true oznacza, że jest więcej faktur, a IsTruncated = true, że wynik został obcięty. Gdy zapytanie się nie powiedzie, Error = true, a ErrorMessage zawiera opis błędu.";
+    private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
+    private const string InvoiceSubjectTypeDescription = "Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony";
     private const string KsefNumberDescription = "Numer KSeF faktury nadany przez system KSeF, np. 5265877635-20250826-0100001AF629-AF";
     private const string DateTypeDescription = "Typ daty, według której filtrowane są faktury: Issue – data wystawienia faktury (domyślnie), Invoicing – data przyjęcia faktury w KSeF (nadania numeru KSeF), PermanentStorage – data trwałego zapisu faktury w repozytorium KSeF";
     private const string KsefError = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
@@ -51,7 +53,7 @@ public partial class KsefTools : IKsefTools
         [Description("Początek zakresu dat (włącznie). Rodzaj daty (wystawienia, przyjęcia w KSeF lub trwałego zapisu) określa parametr dateType. Zakres od-do może obejmować maksymalnie 3 miesiące")] DateTime dataFakturyOd,
         [Description("Koniec zakresu dat (włącznie). Rodzaj daty określa parametr dateType")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
-        [Description("Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony")] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
         [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {       
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(QueryInvoices)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo} invoiceSubjectType {invoiceSubjectType} dateType {dateType}");
@@ -83,14 +85,15 @@ public partial class KsefTools : IKsefTools
     }
     
     [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
-    [Description("Wyszukuje fakturę po numerze nadanym przez wystawcę (np. FV/2026/01/001). " + LookupScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury nadany przez wystawcę (pole P_2 faktury), np. FV/2026/01/001")] string invoiceNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    [Description("Wyszukuje fakturę po numerze nadanym przez wystawcę (np. FV/2026/01/001). " + SearchScopeDescription + " " + SearchResultDescription)]
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury nadany przez wystawcę (pole P_2 faktury), np. FV/2026/01/001")] string invoiceNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
         
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
+            SubjectType = invoiceSubjectType,
             InvoiceNumber = invoiceNumber,
             DateRange = GetMaxDataRange(dateType)
         };
@@ -111,10 +114,10 @@ public partial class KsefTools : IKsefTools
     }
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_nip", Title = "Pobierz faktury dla kupującego o numerze NIP")]
-    [Description("Wyszukuje faktury wystawione dla polskiego nabywcy o podanym NIP. " + LookupScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("NIP nabywcy – 10 cyfr, bez kresek, spacji i prefiksu PL")] string nip, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    [Description("Wyszukuje faktury wystawione dla polskiego nabywcy o podanym NIP. " + SearchScopeDescription + " " + SearchResultDescription)]
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("NIP nabywcy – 10 cyfr, bez kresek, spacji i prefiksu PL")] string nip, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
 
         var buyerIdentifier = new BuyerIdentifier
@@ -125,6 +128,7 @@ public partial class KsefTools : IKsefTools
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
+            SubjectType = invoiceSubjectType,
             BuyerIdentifier = buyerIdentifier,
             DateRange = GetMaxDataRange(dateType)
         };
@@ -146,10 +150,10 @@ public partial class KsefTools : IKsefTools
     }
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_vateu", Title = "Pobierz faktury dla kupującego o numerze VAT UE")]
-    [Description("Wyszukuje faktury wystawione dla nabywcy z innego kraju UE o podanym numerze VAT UE. " + LookupScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer VAT UE nabywcy z kodem kraju, bez spacji, np. DE123456789")] string vatUe, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    [Description("Wyszukuje faktury wystawione dla nabywcy z innego kraju UE o podanym numerze VAT UE. " + SearchScopeDescription + " " + SearchResultDescription)]
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer VAT UE nabywcy z kodem kraju, bez spacji, np. DE123456789")] string vatUe, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called nip: {vatUe}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called vatUe: {vatUe} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
 
         var buyerIdentifier = new BuyerIdentifier
@@ -160,6 +164,7 @@ public partial class KsefTools : IKsefTools
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
+            SubjectType = invoiceSubjectType,
             BuyerIdentifier = buyerIdentifier,
             DateRange = GetMaxDataRange(dateType)
         };

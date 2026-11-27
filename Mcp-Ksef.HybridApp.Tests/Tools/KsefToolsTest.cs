@@ -832,7 +832,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None, dateType);
+        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None, dateType: dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -844,7 +844,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, dateType);
+        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, dateType: dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -856,7 +856,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None, dateType);
+        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None, dateType: dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -883,6 +883,68 @@ public class KsefToolsTest : IDisposable
         await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None, dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
+    public static TheoryData<InvoiceSubjectType> AllInvoiceSubjectTypes()
+    {
+        var data = new TheoryData<InvoiceSubjectType>();
+        foreach (var subjectType in Enum.GetValues<InvoiceSubjectType>())
+        {
+            data.Add(subjectType);
+        }
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(AllInvoiceSubjectTypes))]
+    public async Task GetInvoiceByInvoiceNumber_PassesInvoiceSubjectTypeToQuery(InvoiceSubjectType subjectType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None, invoiceSubjectType: subjectType);
+
+        Assert.Equal(subjectType, captured()!.SubjectType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllInvoiceSubjectTypes))]
+    public async Task GetInvoiceByBuyerNip_PassesInvoiceSubjectTypeToQuery(InvoiceSubjectType subjectType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, invoiceSubjectType: subjectType);
+
+        Assert.Equal(subjectType, captured()!.SubjectType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllInvoiceSubjectTypes))]
+    public async Task GetInvoiceByBuyerVatUe_PassesInvoiceSubjectTypeToQuery(InvoiceSubjectType subjectType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None, invoiceSubjectType: subjectType);
+
+        Assert.Equal(subjectType, captured()!.SubjectType);
+    }
+
+    [Fact]
+    public async Task SearchMethods_WithoutInvoiceSubjectType_DefaultToSubject1()
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
+
+        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
+
+        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
     }
 
     [Fact]
