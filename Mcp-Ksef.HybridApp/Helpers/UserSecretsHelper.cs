@@ -50,11 +50,14 @@ public static class UserSecretsHelper
     /// </list>
     /// A variable that is set but empty still overrides the lower-priority one, as in the host, and means
     /// "not Development". Returns null when no name applies (the host then runs as Production).
-    /// Note: on Windows a variable set to an empty string does not exist at all, so it never overrides.
     /// </summary>
     public static string? GetEnvironmentName(bool useStreamableHttp, string[] args)
     {
-        var fromArgs = new ConfigurationBuilder().AddCommandLine(args).Build()["environment"];
+        // Same arguments the host sees (AppBuilderHelper strips the app's own flags the same way),
+        // so "--http --environment Development" is read as Development by both.
+        var fromArgs = new ConfigurationBuilder()
+            .AddCommandLine(Shared.Configurations.AppSettings.RemoveAppFlags(args))
+            .Build()["environment"];
         if (!string.IsNullOrWhiteSpace(fromArgs))
         {
             return fromArgs;
@@ -76,7 +79,8 @@ public static class UserSecretsHelper
 
     /// <summary>
     /// Copies non-empty KSeF settings from <paramref name="configuration"/> into environment variables.
-    /// Variables that are already set are left unchanged, so real environment variables take precedence.
+    /// Variables that already exist are left unchanged, even when empty (e.g. KSEF_TOKEN= set on purpose),
+    /// so real environment variables take precedence.
     /// </summary>
     /// <returns>The names of the variables that were set.</returns>
     public static IReadOnlyList<string> CopyKsefSettingsToEnvironment(IConfiguration configuration)
@@ -85,7 +89,7 @@ public static class UserSecretsHelper
         foreach (var key in KsefKeys)
         {
             var value = configuration[key];
-            if (string.IsNullOrEmpty(value) || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+            if (string.IsNullOrEmpty(value) || Environment.GetEnvironmentVariable(key) != null)
             {
                 continue;
             }

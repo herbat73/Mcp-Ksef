@@ -8,9 +8,12 @@ public static class AppBuilderHelper
 {
     public static IHostApplicationBuilder Setup(bool useStreamableHttp, string[] args)
     {
+        // The host parses arguments as .NET configuration, where a valueless app flag (--http) would swallow
+        // the next argument (e.g. --environment), so it gets the arguments without the app's own flags.
+        var hostArgs = Shared.Configurations.AppSettings.RemoveAppFlags(args);
         IHostApplicationBuilder builder = useStreamableHttp
-            ? WebApplication.CreateBuilder(args)
-            : Host.CreateApplicationBuilder(args);
+            ? WebApplication.CreateBuilder(hostArgs)
+            : Host.CreateApplicationBuilder(hostArgs);
 
         builder.Services.AddAppSettings<KsefAppSettings>(builder.Configuration, args);
 

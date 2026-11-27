@@ -107,11 +107,11 @@ public abstract class AppSettings
         var useHttp = env.Contains("UseHttp") &&
                       bool.TryParse(env["UseHttp"]?.ToString()?.ToLowerInvariant(), out var result) && result;
 
-        // The environment variable and the argument each enable HTTP; other arguments
-        // (e.g. --environment) must not switch the environment variable off.
-        return useHttp || args.Contains("--http", StringComparer.InvariantCultureIgnoreCase);
+        // An explicit --http / --http=true|false wins; otherwise the environment variable decides.
+        // Unrelated arguments (e.g. --environment) do not switch the environment variable off.
+        return GetFlag(args, HttpFlag) ?? useHttp;
     }
-    
+
     /// <summary>
     /// Checks whether to use Ksef production server or not.
     /// </summary>
@@ -120,8 +120,49 @@ public abstract class AppSettings
         var useProduction = env.Contains(EnvironmentConsts.UseKsefProduction) &&
                       bool.TryParse(env[EnvironmentConsts.UseKsefProduction]?.ToString()?.ToLowerInvariant(), out var result) && result;
 
-        // The environment variable and the argument each select production; other arguments
-        // (e.g. --environment) must not switch the environment variable off.
-        return useProduction || args.Contains("--use-ksef-production", StringComparer.InvariantCultureIgnoreCase);
+        // An explicit --use-ksef-production / --use-ksef-production=true|false wins; otherwise the
+        // environment variable decides. Unrelated arguments do not switch the environment variable off.
+        return GetFlag(args, UseProductionFlag) ?? useProduction;
     }
+
+    /// <summary>Command-line flag that selects the streamable HTTP transport.</summary>
+    public const string HttpFlag = "--http";
+
+    /// <summary>Command-line flag that selects the KSeF production server.</summary>
+    public const string UseProductionFlag = "--use-ksef-production";
+
+    private static readonly string[] AppFlags = [HttpFlag, UseProductionFlag];
+
+    /// <summary>
+    /// Reads an app flag from the command line: <c>--flag</c> means true, <c>--flag=true|false</c> sets the value.
+    /// The last occurrence wins. Returns null when the flag is absent or its value is not a boolean.
+    /// </summary>
+    public static bool? GetFlag(string[] args, string flag)
+    {
+        bool? value = null;
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, flag, StringComparison.OrdinalIgnoreCase))
+            {
+                value = true;
+            }
+            else if (arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase))
+            {
+                value = bool.TryParse(arg[(flag.Length + 1)..], out var parsed) ? parsed : null;
+            }
+        }
+        return value;
+    }
+
+    /// <summary>
+    /// Removes the app's own flags (<see cref="HttpFlag"/>, <see cref="UseProductionFlag"/>) from the arguments.
+    /// .NET configuration reads <c>--key value</c> pairs, so a valueless flag would otherwise swallow the next
+    /// argument: <c>--http --environment Development</c> would lose <c>--environment</c>. Pass the result to the
+    /// host builder and to anything else that parses arguments with .NET configuration.
+    /// </summary>
+    public static string[] RemoveAppFlags(string[] args) =>
+        args.Where(arg => !AppFlags.Any(flag =>
+                string.Equals(arg, flag, StringComparison.OrdinalIgnoreCase) ||
+                arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
 }

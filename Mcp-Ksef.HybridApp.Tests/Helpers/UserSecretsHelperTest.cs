@@ -104,7 +104,7 @@ public class UserSecretsHelperTest : IDisposable
     [InlineData("Production", "Development", "Production")]
     [InlineData(null, "Development", "Development")]
     // A set-but-blank ASPNETCORE_ENVIRONMENT still overrides DOTNET_ENVIRONMENT, as in the host, and is not Development.
-    // (" " is used because on Windows a variable set to "" does not exist.)
+    [InlineData("", "Development", null)]
     [InlineData(" ", "Development", null)]
     [InlineData("Development", "", "Development")]
     [InlineData(null, "", null)]
@@ -139,6 +139,48 @@ public class UserSecretsHelperTest : IDisposable
         SetEnvironment("Production", "Production");
 
         Assert.Equal("Development", UserSecretsHelper.GetEnvironmentName(useStreamableHttp, args));
+    }
+
+    // .NET configuration would read "--http --environment X" as http="--environment", losing the environment;
+    // the app's own flags are removed first, as AppBuilderHelper does for the host.
+    [Theory]
+    [InlineData(true, new[] { "--http", "--environment", "Development" })]
+    [InlineData(false, new[] { "--use-ksef-production", "--environment", "Development" })]
+    [InlineData(true, new[] { "--http=true", "--environment", "Development" })]
+    public void GetEnvironmentName_EnvironmentAfterAppFlag_IsRead(bool useStreamableHttp, string[] args)
+    {
+        SetEnvironment("Production", "Production");
+
+        Assert.Equal("Development", UserSecretsHelper.GetEnvironmentName(useStreamableHttp, args));
+    }
+
+    [Fact]
+    public void CopyKsefSettingsToEnvironment_ExistingEmptyVariable_IsNotOverwritten()
+    {
+        // e.g. KSEF_TOKEN= set on purpose to force certificate authentication.
+        Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, "");
+
+        var copied = UserSecretsHelper.CopyKsefSettingsToEnvironment(Config(new()
+        {
+            [EnvironmentConsts.KsefToken] = "token-from-secrets"
+        }));
+
+        Assert.Empty(copied);
+        Assert.Equal("", Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken));
+    }
+
+    [Fact]
+    public void CopyKsefSettingsToEnvironment_ExistingBlankVariable_IsNotOverwritten()
+    {
+        Environment.SetEnvironmentVariable(EnvironmentConsts.KsefToken, " ");
+
+        var copied = UserSecretsHelper.CopyKsefSettingsToEnvironment(Config(new()
+        {
+            [EnvironmentConsts.KsefToken] = "token-from-secrets"
+        }));
+
+        Assert.Empty(copied);
+        Assert.Equal(" ", Environment.GetEnvironmentVariable(EnvironmentConsts.KsefToken));
     }
 
     [Fact]

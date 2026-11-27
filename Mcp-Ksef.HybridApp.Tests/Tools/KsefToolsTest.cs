@@ -226,7 +226,9 @@ public class KsefToolsTest : IDisposable
                 It.Is<InvoiceQueryFilters>(f => 
                     f.InvoiceNumber == invoiceNumber &&
                     f.DateRange != null && f.DateRange.DateType == DateType.Issue &&
-                    f.DateRange.To <= DateTime.UtcNow &&
+                    f.DateRange.To!.Value > DateTimeOffset.UtcNow &&
+                    f.DateRange.To!.Value <= DateTimeOffset.UtcNow.AddDays(2) &&
+                    f.DateRange.To!.Value - f.DateRange.From <= TimeSpan.FromDays(KsefTools.MaxDateRangeDays) &&
                     f.DateRange.From < f.DateRange.To), 
                 It.IsAny<string>(), 
                 It.IsAny<int?>(), 
@@ -367,7 +369,7 @@ public class KsefToolsTest : IDisposable
     }
     
     [Fact]
-    public async Task GetInvoiceUrl_WhenMetadataIsNull_ReturnsEmptyString()
+    public async Task GetInvoiceUrl_WhenMetadataIsNull_ThrowsNotFound()
     {
         var ksefNumber = "NON-EXISTENT";
     
@@ -384,13 +386,13 @@ public class KsefToolsTest : IDisposable
     
         var service = CreateService();
     
-        var result = await service.GetInvoiceUrl(ksefNumber, CancellationToken.None);
-    
-        Assert.Empty(result);
+        var ex = await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl(ksefNumber, CancellationToken.None));
+
+        Assert.Contains("Nie znaleziono faktury", ex.Message);
     }
     
     [Fact]
-    public async Task GetInvoiceUrl_WhenInvoicesListIsEmpty_ReturnsEmptyString()
+    public async Task GetInvoiceUrl_WhenInvoicesListIsEmpty_ThrowsNotFound()
     {
         var ksefNumber = "NON-EXISTENT";
         var expectedResponse = new PagedInvoiceResponse
@@ -411,9 +413,9 @@ public class KsefToolsTest : IDisposable
     
         var service = CreateService();
     
-        var result = await service.GetInvoiceUrl(ksefNumber, CancellationToken.None);
-    
-        Assert.Empty(result);
+        var ex = await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl(ksefNumber, CancellationToken.None));
+
+        Assert.Contains("Nie znaleziono faktury", ex.Message);
     }
     
     [Fact]
@@ -860,7 +862,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, dateType: dateType);
+        await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, dateType: dateType));
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -1035,7 +1037,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, subjectType);
+        await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, subjectType));
 
         Assert.Equal(subjectType, captured()!.SubjectType);
     }
@@ -1067,7 +1069,7 @@ public class KsefToolsTest : IDisposable
         await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
         Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
 
-        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+        await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None));
         Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
 
         await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None));
@@ -1089,7 +1091,7 @@ public class KsefToolsTest : IDisposable
         await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
         Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
 
-        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+        await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None));
         Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
 
         await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None));
@@ -1322,14 +1324,14 @@ public class KsefToolsTest : IDisposable
     }
 
     [Fact]
-    public async Task GetInvoiceUrl_NoMatchingInvoiceInResult_ReturnsEmptyInsteadOfThrowing()
+    public async Task GetInvoiceUrl_NoMatchingInvoiceInResult_ThrowsNotFound()
     {
         SetupSingleInvoiceMetadata("9999999999-OTHER", sellerNip: "9999999999");
         var service = CreateService();
 
-        var result = await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None));
 
-        Assert.Empty(result);
+        Assert.Contains("Nie znaleziono faktury", ex.Message);
         _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
             It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()), Times.Never);
     }
@@ -1379,7 +1381,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceUrl("  1234567890-TEST  ", CancellationToken.None);
+        await Assert.ThrowsAsync<McpException>(() => service.GetInvoiceUrl("  1234567890-TEST  ", CancellationToken.None));
 
         Assert.Equal("1234567890-TEST", captured()!.KsefNumber);
     }
@@ -1528,5 +1530,38 @@ public class KsefToolsTest : IDisposable
         Assert.Equal("INV-001", Assert.Single(copy!.Invoices).KsefNumber);
         Assert.True(copy.HasMore);
         Assert.True(copy.IsTruncated);
+    }
+
+    [Fact]
+    public void GetMaxDataRange_ShortlyAfterMidnightInPoland_IncludesTodaysInvoices()
+    {
+        // 23:30 UTC on 27 Nov is 00:30 on 28 Nov in Poland (CET, UTC+1): invoices issued "today" are dated 28 Nov.
+        var now = new DateTimeOffset(2026, 11, 27, 23, 30, 0, TimeSpan.Zero);
+
+        var range = KsefTools.GetMaxDataRange(DateType.Issue, now);
+
+        Assert.Equal(new DateTimeOffset(2026, 11, 29, 0, 0, 0, TimeSpan.FromHours(1)), range.To);
+    }
+
+    [Fact]
+    public void GetMaxDataRange_InSummerTime_EndsAtStartOfTomorrowInPoland()
+    {
+        // 22:30 UTC on 15 Jul is 00:30 on 16 Jul in Poland (CEST, UTC+2).
+        var now = new DateTimeOffset(2026, 7, 15, 22, 30, 0, TimeSpan.Zero);
+
+        var range = KsefTools.GetMaxDataRange(DateType.Invoicing, now);
+
+        Assert.Equal(new DateTimeOffset(2026, 7, 17, 0, 0, 0, TimeSpan.FromHours(2)), range.To);
+        Assert.Equal(DateType.Invoicing, range.DateType);
+    }
+
+    [Fact]
+    public void GetMaxDataRange_StaysWithinKsefLimit()
+    {
+        var range = KsefTools.GetMaxDataRange(DateType.Issue, new DateTimeOffset(2026, 3, 29, 12, 0, 0, TimeSpan.Zero));
+
+        var length = range.To!.Value - range.From;
+        Assert.True(length <= TimeSpan.FromDays(KsefTools.MaxDateRangeDays), length.ToString());
+        Assert.True(length > TimeSpan.FromDays(KsefTools.MaxDateRangeDays - 1), length.ToString());
     }
 }

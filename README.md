@@ -36,7 +36,7 @@ Instrukcje dla KSeF
 | Pobierz link do faktury po numerze ksef                                                                                                                            | `#get_invoice_url_by_ksef` |
 | Pobierz QR kod do faktury po numerze ksef                                                                                                                          | `#get_invoice_qr_ksef` |
 
-(*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz
+(*) KSeF pozwala wyszukiwać faktury w zakresie dat obejmującym maksymalnie 100 dni, dlatego te narzędzia przeszukują ostatnie 100 dni
 
 ## Jak użyć
 

@@ -27,7 +27,7 @@ public partial class KsefTools : IKsefTools
     private readonly IKsefAuthorizationService _ksefAuthorization;
     private const string ErrorResultDescription = "Gdy operacja się nie powiedzie, wynik jest oznaczony jako błąd i zawiera jego opis.";
     private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wyniki są stronicowane: domyślnie zwracana jest pierwsza strona (pageOffset = 0) po 10 faktur. Gdy HasMore = true, pobierz kolejną stronę, zwiększając pageOffset o 1. IsTruncated = true oznacza, że KSeF obciął wynik – zawęź zakres dat. " + ErrorResultDescription;
-    private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
+    private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 100 dni (najdłuższy zakres dopuszczany przez KSeF); rodzaj daty określa parametr dateType.";
     private const string InvoiceSubjectTypeDescription = "Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony";
     private const string KsefNumberDescription = "Numer KSeF faktury nadany przez system KSeF, np. 5265877635-20250826-0100001AF629-AF";
     private const string DateTypeDescription = "Typ daty, według której filtrowane są faktury: Issue – data wystawienia faktury (domyślnie), Invoicing – data przyjęcia faktury w KSeF (nadania numeru KSeF), PermanentStorage – data trwałego zapisu faktury w repozytorium KSeF";
@@ -74,9 +74,9 @@ public partial class KsefTools : IKsefTools
     private static string Normalize(string? value) => value?.Trim() ?? string.Empty;
 
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
-    [Description("Wyszukuje w KSeF faktury z podanego zakresu dat (maksymalnie 3 miesiące). Domyślnie zwraca faktury wystawione przez nasz podmiot (sprzedażowe), filtrowane po dacie wystawienia. Parametrem invoiceSubjectType można pobrać np. faktury zakupowe, a parametrem dateType zmienić rodzaj daty. " + SearchResultDescription)]
+    [Description("Wyszukuje w KSeF faktury z podanego zakresu dat (maksymalnie 100 dni). Domyślnie zwraca faktury wystawione przez nasz podmiot (sprzedażowe), filtrowane po dacie wystawienia. Parametrem invoiceSubjectType można pobrać np. faktury zakupowe, a parametrem dateType zmienić rodzaj daty. " + SearchResultDescription)]
     public async Task<McpPagedInvoiceResponse> QueryInvoices(
-        [Description("Początek zakresu dat (włącznie). Rodzaj daty (wystawienia, przyjęcia w KSeF lub trwałego zapisu) określa parametr dateType. Zakres od-do może obejmować maksymalnie 3 miesiące")] DateTime dataFakturyOd,
+        [Description("Początek zakresu dat (włącznie). Rodzaj daty (wystawienia, przyjęcia w KSeF lub trwałego zapisu) określa parametr dateType. Zakres od-do może obejmować maksymalnie 100 dni")] DateTime dataFakturyOd,
         [Description("Koniec zakresu dat (włącznie). Rodzaj daty określa parametr dateType")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
         [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
@@ -220,21 +220,21 @@ public partial class KsefTools : IKsefTools
     }
 
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
-    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono. " + ErrorResultDescription)]
+    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Gdy faktury nie znaleziono lub operacja się nie powiedzie, wynik jest oznaczony jako błąd i zawiera jego opis.")]
     public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
 
         var link = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
-        return link?.Url ?? string.Empty;
+        return link.Url;
     }
 
     /// <summary>
     /// Builds the verification URL for an invoice, together with the invoice's KSeF number as KSeF stores it.
-    /// Returns null when the invoice was not found. Throws <see cref="McpException"/> when authentication
-    /// or the KSeF query fails, or when no seller NIP is available for the link.
+    /// Throws <see cref="McpException"/> when the invoice is not found, when authentication or the KSeF query
+    /// fails, or when no seller NIP is available for the link.
     /// </summary>
-    private async Task<(string Url, string KsefNumber)?> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
+    private async Task<(string Url, string KsefNumber)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
     {
         // Trim once and use the same value in the KSeF query, the matching and the logs.
         ksefNumber = Normalize(ksefNumber);
@@ -274,7 +274,7 @@ public partial class KsefTools : IKsefTools
         if (invoiceMetadata == null)
         {
             _logger.LogWarning($"No invoice metadata found for ksefNumber: {ksefNumber}");
-            return null;
+            throw new McpException($"Nie znaleziono faktury o numerze KSeF: {ksefNumber}");
         }
 
         var invoiceHash = invoiceMetadata.InvoiceHash;
@@ -304,8 +304,7 @@ public partial class KsefTools : IKsefTools
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
 
-        var link = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType)
-            ?? throw new McpException($"Nie znaleziono faktury o numerze KSeF: {Normalize(ksefNumber)}");
+        var link = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
 
         // Label the QR with the number as KSeF stores it, not as typed: it is printed on the invoice.
         var officialKsefNumber = link.KsefNumber;
@@ -325,12 +324,45 @@ public partial class KsefTools : IKsefTools
         return contents;
     }
 
-    private static DateRange GetMaxDataRange(DateType dateType)
+    /// <summary>Longest date range KSeF accepts in an invoice metadata query (100 days, counted in UTC).</summary>
+    public const int MaxDateRangeDays = 100;
+
+    private static readonly TimeZoneInfo PolishTimeZone = FindPolishTimeZone();
+
+    private static TimeZoneInfo FindPolishTimeZone()
     {
+        // IANA id works on Linux/macOS and on Windows with ICU; the Windows id is the fallback.
+        foreach (var id in new[] { "Europe/Warsaw", "Central European Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+        }
+        return TimeZoneInfo.Utc;
+    }
+
+    /// <summary>
+    /// The widest date range KSeF accepts, ending at the start of tomorrow in Polish time.
+    /// Ending at "now" in UTC could miss invoices issued today: an issue date has no time, and shortly after
+    /// midnight in Poland UTC is still on the previous day. The KSeF documentation does not say a future end
+    /// is rejected, and its own export example uses one. The range is one minute shorter than the limit.
+    /// </summary>
+    /// <param name="dateType">Which invoice date the range applies to.</param>
+    /// <param name="now">Current time; defaults to <see cref="DateTimeOffset.UtcNow"/> (a parameter for tests).</param>
+    public static DateRange GetMaxDataRange(DateType dateType, DateTimeOffset? now = null)
+    {
+        var polishNow = TimeZoneInfo.ConvertTime(now ?? DateTimeOffset.UtcNow, PolishTimeZone);
+        var startOfTomorrow = polishNow.Date.AddDays(1);
+        var to = new DateTimeOffset(startOfTomorrow, PolishTimeZone.GetUtcOffset(startOfTomorrow));
+
         return new DateRange
         {
-            From = DateTime.UtcNow.AddMonths(-3).AddMinutes(1),
-            To = DateTime.UtcNow,
+            From = to.AddDays(-MaxDateRangeDays).AddMinutes(1),
+            To = to,
             DateType = dateType
         };
     }

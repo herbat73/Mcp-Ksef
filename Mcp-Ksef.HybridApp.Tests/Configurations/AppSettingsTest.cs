@@ -255,6 +255,63 @@ public class AppSettingsTest
     }
 
     [Fact]
+    public void UseProductionServer_ExplicitFalseFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "true" } };
+        var args = new[] { "--use-ksef-production=false" };
+
+        Assert.False(AppSettings.UseProductionServer(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_ExplicitFalseFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--http=false" };
+
+        Assert.False(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_ExplicitTrueFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "false" } };
+        var args = new[] { "--http=true" };
+
+        Assert.True(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_InvalidFlagValue_FallsBackToEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--http=maybe" };
+
+        Assert.True(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Theory]
+    [InlineData(new[] { "--http" }, true)]
+    [InlineData(new[] { "--HTTP" }, true)]
+    [InlineData(new[] { "--http=false" }, false)]
+    [InlineData(new[] { "--http", "--http=false" }, false)]   // last occurrence wins
+    [InlineData(new[] { "--http=false", "--http" }, true)]
+    [InlineData(new[] { "--environment", "Development" }, null)]
+    [InlineData(new string[0], null)]
+    public void GetFlag_ReadsFlagFromArguments(string[] args, bool? expected)
+    {
+        Assert.Equal(expected, AppSettings.GetFlag(args, AppSettings.HttpFlag));
+    }
+
+    [Fact]
+    public void RemoveAppFlags_KeepsOtherArgumentsInOrder()
+    {
+        var args = new[] { "--http", "--environment", "Development", "--use-ksef-production=true", "--Use-Ksef-Production", "--other=1" };
+
+        Assert.Equal(new[] { "--environment", "Development", "--other=1" }, AppSettings.RemoveAppFlags(args));
+    }
+
+    [Fact]
     public void UseProductionServer_ArgumentOverridesEnvironmentVariable()
     {
         var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "false" } };
