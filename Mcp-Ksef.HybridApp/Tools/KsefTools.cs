@@ -167,10 +167,10 @@ public partial class KsefTools : IKsefTools
             return new McpPagedInvoiceResponse($"Nieprawidłowy rozmiar strony pageSize: {pageSize}. Podaj wartość od {MinPageSize} do {MaxPageSize}.");
         }
 
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-
         try
         {
+            await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+
             var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(
                 requestPayload: filters,
                 accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
@@ -178,6 +178,10 @@ public partial class KsefTools : IKsefTools
                 pageSize: pageSize,
                 cancellationToken: cancellationToken);
             return new McpPagedInvoiceResponse(invoiceList);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -198,12 +202,10 @@ public partial class KsefTools : IKsefTools
 
     /// <summary>
     /// Builds the verification URL for an invoice. Returns an empty Url when the invoice was not found,
-    /// or a non-null Error when the KSeF query failed.
+    /// or a non-null Error when authentication or the KSeF query failed.
     /// </summary>
     private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
     {
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-        
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
@@ -216,10 +218,16 @@ public partial class KsefTools : IKsefTools
         PagedInvoiceResponse metadata;
         try
         {
+            await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+
             metadata = await _ksefClient.QueryInvoiceMetadataAsync(
                 requestPayload: invoiceMetadataQueryRequest,
                 accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
                 cancellationToken: cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -227,13 +235,15 @@ public partial class KsefTools : IKsefTools
             return (string.Empty, $"{KsefError}{ex.Message}");
         }
 
-        if (metadata == null || !metadata.Invoices.Any())
+        // KSeF may match the number case-insensitively, so compare the same way to avoid missing the invoice.
+        var invoiceMetadata = metadata?.Invoices?.FirstOrDefault(x =>
+            string.Equals(x.KsefNumber, ksefNumber?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (invoiceMetadata == null)
         {
-            _logger.LogWarning("retuned metadata is null");
+            _logger.LogWarning($"No invoice metadata found for ksefNumber: {ksefNumber}");
             return (string.Empty, null);
         }
-        
-        var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
+
         var invoiceHash = invoiceMetadata.InvoiceHash;
         var issueDate = invoiceMetadata.IssueDate;
         
@@ -271,15 +281,10 @@ public partial class KsefTools : IKsefTools
         var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, ksefNumber);
         if (labeledQr.Length == 0) return GetErroredContentInfo($"Nie udało podpisać QR kody numerem KSeF: {ksefNumber}");
         
-        var contents = new List<ContentBlock>
-        {
-            new ImageContentBlock
-            {
-                Data = labeledQr,
-                MimeType = "image/png;base64",
-                Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f }
-            }
-        };
+        // FromBytes base64-encodes the PNG, as the MCP image content requires.
+        var image = ImageContentBlock.FromBytes(labeledQr, "image/png");
+        image.Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f };
+        var contents = new List<ContentBlock> { image };
 
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {labeledQr.Length} bytes");
         return contents;

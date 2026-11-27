@@ -69,7 +69,7 @@ public class KsefAuthorizationService : IKsefAuthorizationService
                     $"Token refreshed, now it valid until: {_authenticationResponse.Response?.AccessToken.ValidUntil}");
             }
         }
-        _logger.LogInformation($"{nameof(VerifyAuthToken)} finished");
+        _logger.LogDebug($"{nameof(VerifyAuthToken)} finished");
     }
     
     private async Task<AuthenticationOperationStatusResponse> GetAccessTokenFromKsefTokenAsync(string nip, CancellationToken cancellationToken)

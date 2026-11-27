@@ -19,5 +19,6 @@ public class McpPagedInvoiceResponse : PagedInvoiceResponse
     public McpPagedInvoiceResponse(string message)
     {
         ErrorMessage = message;
+        Invoices = new List<InvoiceSummary>();
     }
 }

@@ -94,6 +94,32 @@ public class UserSecretsHelperTest : IDisposable
     }
 
     [Theory]
+    [InlineData("Production", "Development", "Production")]   // ASPNETCORE_ENVIRONMENT wins, like the host
+    [InlineData(null, "Development", "Development")]
+    [InlineData("", "Development", "Development")]            // empty counts as unset
+    [InlineData("Development", "", "Development")]
+    [InlineData(null, "", null)]
+    [InlineData(null, null, null)]
+    public void GetEnvironmentName_ResolvesLikeTheHost(string? aspNetCore, string? dotnet, string? expected)
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", aspNetCore);
+        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", dotnet);
+
+        Assert.Equal(expected, UserSecretsHelper.GetEnvironmentName());
+    }
+
+    [Fact]
+    public void LoadIntoEnvironmentIfDevelopment_AspNetCoreProductionOverridesDotnetDevelopment_DoesNothing()
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+
+        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly);
+
+        Assert.Empty(copied);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("Production")]
     public void LoadIntoEnvironmentIfDevelopment_OutsideDevelopment_DoesNothing(string? environmentName)

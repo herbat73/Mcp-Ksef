@@ -521,8 +521,8 @@ public class KsefToolsTest : IDisposable
         Assert.Single(contentList);
         Assert.IsType<ImageContentBlock>(contentList[0]);
         var imageContent = (ImageContentBlock)contentList[0];
-        Assert.Equal("image/png;base64", imageContent.MimeType);
-        Assert.True(imageContent.Data.Length>0);
+        Assert.Equal("image/png", imageContent.MimeType);
+        AssertIsBase64Png(imageContent.Data.ToArray());
     }
     
     [Fact]
@@ -566,7 +566,10 @@ public class KsefToolsTest : IDisposable
             callToolResult, context.GetTypeInfo(typeof(CallToolResult))!);
 
         Assert.NotNull(json);
-        Assert.Equal("image", json!["content"]![0]!["type"]!.GetValue<string>());
+        var block = json!["content"]![0]!;
+        Assert.Equal("image", block["type"]!.GetValue<string>());
+        Assert.Equal("image/png", block["mimeType"]!.GetValue<string>());
+        AssertIsBase64Png(System.Text.Encoding.UTF8.GetBytes(block["data"]!.GetValue<string>()));
     }
 
     [Fact]
@@ -1240,5 +1243,135 @@ public class KsefToolsTest : IDisposable
 
         Assert.True(result.HasMore);
         Assert.Single(result.Invoices);
+    }
+
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    /// <summary>Asserts that the bytes are base64 text (as MCP requires) that decodes to a PNG image.</summary>
+    private static void AssertIsBase64Png(byte[] base64Utf8)
+    {
+        var decoded = Convert.FromBase64String(System.Text.Encoding.UTF8.GetString(base64Utf8));
+        Assert.True(decoded.Length > PngSignature.Length);
+        Assert.Equal(PngSignature, decoded.Take(PngSignature.Length).ToArray());
+    }
+
+    private void SetupVerifyAuthTokenThrows()
+    {
+        _authorizationServiceMock
+            .Setup(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("auth failed"));
+    }
+
+    [Theory]
+    [MemberData(nameof(SearchMethods))]
+    public async Task SearchMethods_WhenAuthenticationFails_ReturnErrorResponse(string method)
+    {
+        SetupVerifyAuthTokenThrows();
+        var service = CreateService();
+
+        var result = await CallSearch(service, method);
+
+        AssertErrorResponse(result, "auth failed");
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_WhenAuthenticationFails_ReturnsErrorMessage()
+    {
+        SetupVerifyAuthTokenThrows();
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        Assert.Equal($"{KsefErrorPrefix}auth failed", result);
+    }
+
+    [Fact]
+    public async Task GetInvoiceQrWithKsef_WhenAuthenticationFails_ReturnsErrorText()
+    {
+        SetupVerifyAuthTokenThrows();
+        var service = CreateService();
+
+        var result = (await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None)).ToList();
+
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result));
+        Assert.Contains($"{KsefErrorPrefix}auth failed", text.Text);
+    }
+
+    [Theory]
+    [MemberData(nameof(SearchMethods))]
+    public async Task SearchMethods_WhenCancelled_ThrowInsteadOfReturningError(string method)
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        SetupQueryInvoiceMetadataThrows(new OperationCanceledException(cts.Token));
+        var service = CreateService();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => method switch
+        {
+            nameof(KsefTools.QueryInvoices) => service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), cts.Token),
+            nameof(KsefTools.GetInvoiceByInvoiceNumber) => service.GetInvoiceByInvoiceNumber("FV/2026/01/001", cts.Token),
+            nameof(KsefTools.GetInvoiceByBuyerNip) => service.GetInvoiceByBuyerNip("9876543210", cts.Token),
+            _ => service.GetInvoiceByBuyerVatUe("DE123456789", cts.Token)
+        });
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_WhenCancelled_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        SetupQueryInvoiceMetadataThrows(new OperationCanceledException(cts.Token));
+        var service = CreateService();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.GetInvoiceUrl("1234567890-TEST", cts.Token));
+    }
+
+    [Fact]
+    public async Task SearchMethods_TimeoutWithoutCancellation_ReturnsErrorResponse()
+    {
+        // e.g. an HttpClient timeout: an OperationCanceledException the caller did not request.
+        SetupQueryInvoiceMetadataThrows(new TaskCanceledException("timeout"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None);
+
+        AssertErrorResponse(result, "timeout");
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_KsefNumberWithDifferentCase_FindsInvoice()
+    {
+        SetupSingleInvoiceMetadata("1234567890-ABCDEF", sellerNip: "1234567890");
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl(" 1234567890-abcdef ", CancellationToken.None);
+
+        Assert.Equal("https://ksef.mf.gov.pl/verify", result);
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_NoMatchingInvoiceInResult_ReturnsEmptyInsteadOfThrowing()
+    {
+        SetupSingleInvoiceMetadata("9999999999-OTHER", sellerNip: "9999999999");
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        Assert.Empty(result);
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ErrorResponse_HasEmptyInvoiceListNotNull()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), CancellationToken.None);
+
+        Assert.True(result.Error);
+        Assert.NotNull(result.Invoices);
+        Assert.Empty(result.Invoices);
     }
 }

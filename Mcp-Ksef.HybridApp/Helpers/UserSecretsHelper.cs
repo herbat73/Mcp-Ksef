@@ -27,9 +27,7 @@ public static class UserSecretsHelper
     /// </summary>
     public static IReadOnlyList<string> LoadIntoEnvironmentIfDevelopment(Assembly assembly)
     {
-        var environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
-                              ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        if (!string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(GetEnvironmentName(), "Development", StringComparison.OrdinalIgnoreCase))
         {
             return [];
         }
@@ -38,6 +36,22 @@ public static class UserSecretsHelper
             .AddUserSecrets(assembly, optional: true)
             .Build();
         return CopyKsefSettingsToEnvironment(secrets);
+    }
+
+    /// <summary>
+    /// Returns the environment name the same way the ASP.NET Core host resolves it:
+    /// ASPNETCORE_ENVIRONMENT wins over DOTNET_ENVIRONMENT, and empty values count as unset.
+    /// </summary>
+    public static string? GetEnvironmentName()
+    {
+        var aspNetCore = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        if (!string.IsNullOrWhiteSpace(aspNetCore))
+        {
+            return aspNetCore;
+        }
+
+        var dotnet = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+        return string.IsNullOrWhiteSpace(dotnet) ? null : dotnet;
     }
 
     /// <summary>
