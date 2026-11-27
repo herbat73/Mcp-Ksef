@@ -231,11 +231,11 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
     [Description("Zwraca qr kod do faktury po numerze ksef")]
-    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken, [Description("DateType")] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber}");
         
-        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken);
+        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, dateType);
         if (error != null) return GetErroredContentInfo(error);
         if (string.IsNullOrEmpty(url)) return GetErroredContentInfo($"Nie udało się pobrać danych dla numeru KSeF: {ksefNumber}");
         

@@ -873,6 +873,18 @@ public class KsefToolsTest : IDisposable
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
 
+    [Theory]
+    [MemberData(nameof(AllDateTypes))]
+    public async Task GetInvoiceQrWithKsef_PassesDateTypeToQuery(DateType dateType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None, dateType);
+
+        Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
     [Fact]
     public async Task QueryMethods_WithoutDateType_DefaultToIssue()
     {

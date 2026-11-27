@@ -17,5 +17,5 @@ public interface IKsefTools
     Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken, DateType dateType = DateType.Issue);
     Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken, DateType dateType = DateType.Issue);
     Task<string> GetInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, DateType dateType = DateType.Issue);
-    Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef(string ksefNumber, CancellationToken cancellationToken);
+    Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef(string ksefNumber, CancellationToken cancellationToken, DateType dateType = DateType.Issue);
 }

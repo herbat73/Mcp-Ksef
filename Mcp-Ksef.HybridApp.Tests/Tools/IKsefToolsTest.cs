@@ -118,12 +118,13 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var m = t.GetMethod(
                 nameof(IKsefTools.GetInvoiceQrWithKsef),
-                [typeof(string), typeof(CancellationToken)]);
+                [typeof(string), typeof(CancellationToken), typeof(DateType)]);
 
             AssertReturnsTaskOf(m!, typeof(IEnumerable<ContentBlock>));
             AssertMethodParameters(m!,
                 ("ksefNumber", typeof(string)),
-                ("cancellationToken", typeof(CancellationToken)));
+                ("cancellationToken", typeof(CancellationToken)),
+                ("dateType", typeof(DateType)));
         }
 
         [Fact]
@@ -142,7 +143,7 @@ namespace McpKsef.HybridApp.Tools.Tests
                 [nameof(IKsefTools.GetInvoiceByBuyerNip)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
                 [nameof(IKsefTools.GetInvoiceByBuyerVatUe)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
                 [nameof(IKsefTools.GetInvoiceUrl)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
-                [nameof(IKsefTools.GetInvoiceQrWithKsef)] = [typeof(string), typeof(CancellationToken)]
+                [nameof(IKsefTools.GetInvoiceQrWithKsef)] = [typeof(string), typeof(CancellationToken), typeof(DateType)]
             };
 
             foreach (var (name, signature) in expected)
