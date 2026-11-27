@@ -554,16 +554,23 @@ public class KsefToolsTest : IDisposable
         var callToolResult = new CallToolResult { Content = content.ToList() };
 
         // The MCP server serializes tool results through the SDK's internal source-generated context
-        // (McpJsonUtilities.JsonContext); the bug only reproduces on that path, not with DefaultOptions.
+        // (McpJsonUtilities.JsonContext); the bug only reproduces on that path, not with DefaultOptions,
+        // so this test reaches the internal type by reflection on purpose.
+        const string sdkChanged =
+            "ModelContextProtocol no longer has the internal McpJsonUtilities.JsonContext this regression test relies on " +
+            "(probably renamed in a package update). Find the type the SDK now uses to serialize CallToolResult and update " +
+            "this test. Do not switch to McpJsonUtilities.DefaultOptions: that path does not reproduce csharp-sdk#2012.";
         var contextType = typeof(ModelContextProtocol.McpJsonUtilities).GetNestedType(
             "JsonContext", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        Assert.NotNull(contextType);
-        var context = (System.Text.Json.Serialization.JsonSerializerContext)contextType!
-            .GetProperty("Default", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!
-            .GetValue(null)!;
+        Assert.True(contextType != null, sdkChanged);
+        var context = contextType!
+            .GetProperty("Default", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            ?.GetValue(null) as System.Text.Json.Serialization.JsonSerializerContext;
+        Assert.True(context != null, sdkChanged);
+        var typeInfo = context!.GetTypeInfo(typeof(CallToolResult));
+        Assert.True(typeInfo != null, sdkChanged);
 
-        var json = System.Text.Json.JsonSerializer.SerializeToNode(
-            callToolResult, context.GetTypeInfo(typeof(CallToolResult))!);
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(callToolResult, typeInfo!);
 
         Assert.NotNull(json);
         var block = json!["content"]![0]!;
@@ -1373,5 +1380,94 @@ public class KsefToolsTest : IDisposable
         Assert.True(result.Error);
         Assert.NotNull(result.Invoices);
         Assert.Empty(result.Invoices);
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_KsefNumberWithSpaces_SendsTrimmedNumberToKsef()
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceUrl("  1234567890-TEST  ", CancellationToken.None);
+
+        Assert.Equal("1234567890-TEST", captured()!.KsefNumber);
+    }
+
+    [Fact]
+    public async Task GetInvoiceQrWithKsef_KsefNumberWithSpaces_SendsTrimmedNumberToKsef()
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceQrWithKsef("  1234567890-TEST  ", CancellationToken.None);
+
+        Assert.Equal("1234567890-TEST", captured()!.KsefNumber);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task GetInvoiceUrl_SalesInvoiceWithoutSellerNipAndWithoutOurNip_ReturnsError(string? vatId)
+    {
+        Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, vatId);
+        SetupSingleInvoiceMetadata("1234567890-TEST", sellerNip: null);
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        Assert.Contains("Brak NIP sprzedawcy", result);
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetInvoice_WhenAuthenticationFails_ReturnsErrorMessage()
+    {
+        SetupVerifyAuthTokenThrows();
+        var service = CreateService();
+
+        var result = await service.GetInvoice("1234567890-TEST", CancellationToken.None);
+
+        Assert.Equal($"{KsefErrorPrefix}auth failed", result);
+        _ksefClientMock.Verify(x => x.GetInvoiceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetInvoice_WhenClientThrows_ReturnsErrorMessage()
+    {
+        _ksefClientMock
+            .Setup(x => x.GetInvoiceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("not found"));
+        var service = CreateService();
+
+        var result = await service.GetInvoice("1234567890-TEST", CancellationToken.None);
+
+        Assert.Equal($"{KsefErrorPrefix}not found", result);
+    }
+
+    [Fact]
+    public async Task GetInvoice_WhenCancelled_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        _ksefClientMock
+            .Setup(x => x.GetInvoiceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+        var service = CreateService();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.GetInvoice("1234567890-TEST", cts.Token));
+    }
+
+    [Fact]
+    public async Task GetInvoice_KsefNumberWithSpaces_SendsTrimmedNumberToKsef()
+    {
+        _ksefClientMock
+            .Setup(x => x.GetInvoiceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<invoice/>");
+        var service = CreateService();
+
+        await service.GetInvoice("  1234567890-TEST  ", CancellationToken.None);
+
+        _ksefClientMock.Verify(x => x.GetInvoiceAsync("1234567890-TEST", "test-token", It.IsAny<CancellationToken>()), Times.Once);
     }
 }

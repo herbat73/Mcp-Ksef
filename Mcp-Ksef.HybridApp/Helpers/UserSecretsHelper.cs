@@ -25,9 +25,12 @@ public static class UserSecretsHelper
     /// In the Development environment, loads the user secrets of <paramref name="assembly"/>
     /// and copies the KSeF settings into environment variables. Does nothing in other environments.
     /// </summary>
-    public static IReadOnlyList<string> LoadIntoEnvironmentIfDevelopment(Assembly assembly)
+    /// <param name="assembly">Assembly whose UserSecretsId identifies the secrets.</param>
+    /// <param name="useStreamableHttp">True for the HTTP (WebApplication) host, false for the stdio (generic) host.</param>
+    /// <param name="args">Command-line arguments, which can set the environment with --environment.</param>
+    public static IReadOnlyList<string> LoadIntoEnvironmentIfDevelopment(Assembly assembly, bool useStreamableHttp, string[] args)
     {
-        if (!string.Equals(GetEnvironmentName(), "Development", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(GetEnvironmentName(useStreamableHttp, args), "Development", StringComparison.OrdinalIgnoreCase))
         {
             return [];
         }
@@ -39,15 +42,29 @@ public static class UserSecretsHelper
     }
 
     /// <summary>
-    /// Returns the environment name the same way the ASP.NET Core host resolves it:
-    /// ASPNETCORE_ENVIRONMENT wins over DOTNET_ENVIRONMENT, and empty values count as unset.
+    /// Returns the environment name the same way the host that will run resolves it:
+    /// <list type="bullet">
+    /// <item>--environment on the command line wins for both hosts;</item>
+    /// <item>the HTTP host (WebApplication) then uses ASPNETCORE_ENVIRONMENT, then DOTNET_ENVIRONMENT;</item>
+    /// <item>the stdio host (Host.CreateApplicationBuilder) uses only DOTNET_ENVIRONMENT.</item>
+    /// </list>
+    /// Empty values count as unset. Returns null when nothing is set (the host then runs as Production).
     /// </summary>
-    public static string? GetEnvironmentName()
+    public static string? GetEnvironmentName(bool useStreamableHttp, string[] args)
     {
-        var aspNetCore = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        if (!string.IsNullOrWhiteSpace(aspNetCore))
+        var fromArgs = new ConfigurationBuilder().AddCommandLine(args).Build()["environment"];
+        if (!string.IsNullOrWhiteSpace(fromArgs))
         {
-            return aspNetCore;
+            return fromArgs;
+        }
+
+        if (useStreamableHttp)
+        {
+            var aspNetCore = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (!string.IsNullOrWhiteSpace(aspNetCore))
+            {
+                return aspNetCore;
+            }
         }
 
         var dotnet = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");

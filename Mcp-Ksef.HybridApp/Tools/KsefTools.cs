@@ -44,12 +44,25 @@ public partial class KsefTools : IKsefTools
     public async Task<string> GetInvoice([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-        
-        var invoice = await _ksefClient.GetInvoiceAsync(ksefNumber, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken);
-        
-        return invoice;
+
+        try
+        {
+            await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+
+            return await _ksefClient.GetInvoiceAsync(NormalizeKsefNumber(ksefNumber), _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invoice");
+            return $"{KsefError}{ex.Message}";
+        }
     }
+
+    private static string NormalizeKsefNumber(string? ksefNumber) => ksefNumber?.Trim() ?? string.Empty;
     
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
     [Description("Wyszukuje w KSeF faktury z podanego zakresu dat (maksymalnie 3 miesiące). Domyślnie zwraca faktury wystawione przez nasz podmiot (sprzedażowe), filtrowane po dacie wystawienia. Parametrem invoiceSubjectType można pobrać np. faktury zakupowe, a parametrem dateType zmienić rodzaj daty. " + SearchResultDescription)]
@@ -206,6 +219,9 @@ public partial class KsefTools : IKsefTools
     /// </summary>
     private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
     {
+        // Trim once and use the same value in the KSeF query, the matching and the logs.
+        ksefNumber = NormalizeKsefNumber(ksefNumber);
+
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
@@ -237,7 +253,7 @@ public partial class KsefTools : IKsefTools
 
         // KSeF may match the number case-insensitively, so compare the same way to avoid missing the invoice.
         var invoiceMetadata = metadata?.Invoices?.FirstOrDefault(x =>
-            string.Equals(x.KsefNumber, ksefNumber?.Trim(), StringComparison.OrdinalIgnoreCase));
+            string.Equals(x.KsefNumber, ksefNumber, StringComparison.OrdinalIgnoreCase));
         if (invoiceMetadata == null)
         {
             _logger.LogWarning($"No invoice metadata found for ksefNumber: {ksefNumber}");
@@ -250,14 +266,14 @@ public partial class KsefTools : IKsefTools
         // The verification link is built from the seller's NIP. For our own sales invoices it may be
         // missing from the metadata, so fall back to our NIP; for other invoices that would give a wrong link.
         var sellerNip = invoiceMetadata.Seller?.Nip;
+        if (string.IsNullOrEmpty(sellerNip) && invoiceSubjectType == InvoiceSubjectType.Subject1)
+        {
+            sellerNip = _vatId;
+        }
         if (string.IsNullOrEmpty(sellerNip))
         {
-            if (invoiceSubjectType != InvoiceSubjectType.Subject1)
-            {
-                _logger.LogWarning($"Seller NIP missing in metadata for ksefNumber: {ksefNumber}");
-                return (string.Empty, $"Brak NIP sprzedawcy w danych faktury o numerze KSeF: {ksefNumber}");
-            }
-            sellerNip = _vatId;
+            _logger.LogWarning($"Seller NIP missing in metadata for ksefNumber: {ksefNumber}");
+            return (string.Empty, $"Brak NIP sprzedawcy w danych faktury o numerze KSeF: {ksefNumber}");
         }
 
         var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(sellerNip, issueDate.DateTime, invoiceHash);

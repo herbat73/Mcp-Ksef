@@ -41,6 +41,12 @@ public class UserSecretsHelperTest : IDisposable
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
+    private static void SetEnvironment(string? aspNetCore, string? dotnet)
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", aspNetCore);
+        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", dotnet);
+    }
+
     [Fact]
     public void CopyKsefSettingsToEnvironment_SetsMissingVariables()
     {
@@ -93,28 +99,64 @@ public class UserSecretsHelperTest : IDisposable
         Assert.Empty(copied);
     }
 
+    // HTTP host (WebApplication): ASPNETCORE_ENVIRONMENT wins over DOTNET_ENVIRONMENT.
     [Theory]
-    [InlineData("Production", "Development", "Production")]   // ASPNETCORE_ENVIRONMENT wins, like the host
+    [InlineData("Production", "Development", "Production")]
     [InlineData(null, "Development", "Development")]
     [InlineData("", "Development", "Development")]            // empty counts as unset
     [InlineData("Development", "", "Development")]
     [InlineData(null, "", null)]
     [InlineData(null, null, null)]
-    public void GetEnvironmentName_ResolvesLikeTheHost(string? aspNetCore, string? dotnet, string? expected)
+    public void GetEnvironmentName_HttpHost_PrefersAspNetCoreVariable(string? aspNetCore, string? dotnet, string? expected)
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", aspNetCore);
-        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", dotnet);
+        SetEnvironment(aspNetCore, dotnet);
 
-        Assert.Equal(expected, UserSecretsHelper.GetEnvironmentName());
+        Assert.Equal(expected, UserSecretsHelper.GetEnvironmentName(useStreamableHttp: true, []));
+    }
+
+    // stdio host (Host.CreateApplicationBuilder): only DOTNET_ENVIRONMENT counts.
+    [Theory]
+    [InlineData("Production", "Development", "Development")]
+    [InlineData("Development", null, null)]
+    [InlineData("Development", "", null)]
+    [InlineData(null, "Development", "Development")]
+    public void GetEnvironmentName_StdioHost_IgnoresAspNetCoreVariable(string? aspNetCore, string? dotnet, string? expected)
+    {
+        SetEnvironment(aspNetCore, dotnet);
+
+        Assert.Equal(expected, UserSecretsHelper.GetEnvironmentName(useStreamableHttp: false, []));
+    }
+
+    [Theory]
+    [InlineData(true, new[] { "--environment", "Development" })]
+    [InlineData(false, new[] { "--environment", "Development" })]
+    [InlineData(false, new[] { "--environment=Development" })]
+    [InlineData(true, new[] { "--environment=Development", "--http", "true" })]
+    public void GetEnvironmentName_CommandLineArgumentWinsOverVariables(bool useStreamableHttp, string[] args)
+    {
+        SetEnvironment("Production", "Production");
+
+        Assert.Equal("Development", UserSecretsHelper.GetEnvironmentName(useStreamableHttp, args));
     }
 
     [Fact]
-    public void LoadIntoEnvironmentIfDevelopment_AspNetCoreProductionOverridesDotnetDevelopment_DoesNothing()
+    public void LoadIntoEnvironmentIfDevelopment_StdioWithOnlyAspNetCoreDevelopment_DoesNothing()
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
-        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+        // The stdio host would run as Production here, so developer secrets must not be loaded.
+        SetEnvironment("Development", null);
 
-        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly);
+        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly, useStreamableHttp: false, []);
+
+        Assert.Empty(copied);
+        Assert.Null(Environment.GetEnvironmentVariable(EnvironmentConsts.VatId));
+    }
+
+    [Fact]
+    public void LoadIntoEnvironmentIfDevelopment_HttpWithAspNetCoreProduction_DoesNothing()
+    {
+        SetEnvironment("Production", "Development");
+
+        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly, useStreamableHttp: true, []);
 
         Assert.Empty(copied);
     }
@@ -124,9 +166,9 @@ public class UserSecretsHelperTest : IDisposable
     [InlineData("Production")]
     public void LoadIntoEnvironmentIfDevelopment_OutsideDevelopment_DoesNothing(string? environmentName)
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environmentName);
+        SetEnvironment(environmentName, environmentName);
 
-        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly);
+        var copied = UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(UserSecretsHelper).Assembly, useStreamableHttp: true, []);
 
         Assert.Empty(copied);
         Assert.Null(Environment.GetEnvironmentVariable(EnvironmentConsts.VatId));

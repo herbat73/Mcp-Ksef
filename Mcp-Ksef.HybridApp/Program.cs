@@ -5,14 +5,16 @@ using McpKsef.HybridApp.Helpers;
 using McpKsef.HybridApp.Services;
 using Shared.Consts;
 
+// The transport decides which host runs, and so which variable sets its environment.
+var useStreamableHttp = AppSettings.UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
+
 // In Development, KSeF settings can come from user secrets (dotnet user-secrets) instead of launchSettings.json.
-UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(Program).Assembly);
+UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(Program).Assembly, useStreamableHttp, args);
 
 if (!RunInfoHelper.CheckEnvironmentConsts().IsValid) return;
 
 Console.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
 
-var useStreamableHttp = AppSettings.UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
 var builder = AppBuilderHelper.Setup(useStreamableHttp, args);
 
 builder.Services.AddKSeFClient(options =>
