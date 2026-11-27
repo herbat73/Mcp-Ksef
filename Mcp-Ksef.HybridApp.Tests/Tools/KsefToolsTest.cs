@@ -114,7 +114,10 @@ public class KsefToolsTest : IDisposable
         var service = CreateService();
     
         var result = await service.QueryInvoices(fromDate, toDate, CancellationToken.None);
-    
+
+        Assert.IsType<McpPagedInvoiceResponse>(result);
+        Assert.False(result.Error);
+        Assert.Null(result.ErrorMessage);
         Assert.Equal(2, result.Invoices.Count);
         _authorizationServiceMock.Verify(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()), Times.Once);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
@@ -184,6 +187,7 @@ public class KsefToolsTest : IDisposable
     
         var result = await service.GetInvoiceByInvoiceNumber(invoiceNumber, CancellationToken.None);
     
+        Assert.False(result.Error);
         Assert.Single(result.Invoices);
         Assert.Equal(invoiceNumber, result.Invoices.ToArray()[0].InvoiceNumber);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
@@ -259,7 +263,8 @@ public class KsefToolsTest : IDisposable
         var service = CreateService();
     
         var result = await service.GetInvoiceByBuyerNip(buyerNip, CancellationToken.None);
-    
+
+        Assert.False(result.Error);
         Assert.Single(result.Invoices);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f => 
@@ -299,7 +304,8 @@ public class KsefToolsTest : IDisposable
         var service = CreateService();
     
         var result = await service.GetInvoiceByBuyerVatUe(vatUe, CancellationToken.None);
-    
+
+        Assert.False(result.Error);
         Assert.Single(result.Invoices);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f => 
@@ -511,7 +517,7 @@ public class KsefToolsTest : IDisposable
         Assert.Single(contentList);
         Assert.IsType<ImageContentBlock>(contentList[0]);
         var imageContent = (ImageContentBlock)contentList[0];
-        Assert.Equal("image/png", imageContent.MimeType);
+        Assert.Equal("image/png;base64", imageContent.MimeType);
         Assert.True(imageContent.Data.Length>0);
     }
     
@@ -654,5 +660,98 @@ public class KsefToolsTest : IDisposable
             It.IsAny<int?>(),
             It.IsAny<SortOrder>(),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private const string KsefErrorPrefix = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
+
+    private void SetupQueryInvoiceMetadataThrows(Exception exception)
+    {
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(exception);
+    }
+
+    private static void AssertErrorResponse(McpPagedInvoiceResponse result, string exceptionMessage)
+    {
+        Assert.NotNull(result);
+        Assert.True(result.Error);
+        Assert.Equal($"{KsefErrorPrefix}{exceptionMessage}", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task QueryInvoices_WhenClientThrows_ReturnsErrorResponse()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), CancellationToken.None);
+
+        AssertErrorResponse(result, "boom");
+    }
+
+    [Fact]
+    public async Task GetInvoiceByInvoiceNumber_WhenClientThrows_ReturnsErrorResponse()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None);
+
+        AssertErrorResponse(result, "boom");
+    }
+
+    [Fact]
+    public async Task GetInvoiceByBuyerNip_WhenClientThrows_ReturnsErrorResponse()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None);
+
+        AssertErrorResponse(result, "boom");
+    }
+
+    [Fact]
+    public async Task GetInvoiceByBuyerVatUe_WhenClientThrows_ReturnsErrorResponse()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
+
+        AssertErrorResponse(result, "boom");
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_WhenClientThrows_ReturnsErrorMessageWithExceptionMessage()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        Assert.Equal($"{KsefErrorPrefix}boom", result);
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetInvoiceQrWithKsef_WhenClientThrows_ReturnsErrorTextInsteadOfQr()
+    {
+        SetupQueryInvoiceMetadataThrows(new InvalidOperationException("boom"));
+        var service = CreateService();
+
+        var result = await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None);
+
+        var contentList = result.ToList();
+        Assert.Single(contentList);
+        var textContent = Assert.IsType<TextContentBlock>(contentList[0]);
+        Assert.Contains($"{KsefErrorPrefix}boom", textContent.Text);
+        Assert.DoesNotContain(contentList, c => c is ImageContentBlock);
     }
 }

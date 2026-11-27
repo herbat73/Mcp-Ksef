@@ -19,7 +19,7 @@ public partial class KsefTools : IKsefTools
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
-    private const string KSEF_ERROR = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF";
+    private const string KsefError = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
     
     public KsefTools(ILogger<KsefTools> logger, IKsefAuthorizationService ksefAuthorization, IKSeFClient ksefClient, IVerificationLinkService verificationLinkService)
     {
@@ -31,7 +31,7 @@ public partial class KsefTools : IKsefTools
     }
     
     [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze ksef")]
-    [Description("Pobiera fakturę po numerze ksef")]
+    [Description("Pobiera fakturę po numerze ksef w formacie XML")]
     public async Task<string> GetInvoice([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
@@ -44,7 +44,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
     [Description("Pobiera listę faktur z podanego okresu z systemu ksef na podstawie zapytania")]
-    public async Task<PagedInvoiceResponse> QueryInvoices(
+    public async Task<McpPagedInvoiceResponse> QueryInvoices(
         [Description("Data wystawienia faktury od")] DateTime dataFakturyOd,
         [Description("Data wystawienia faktury do")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
@@ -65,13 +65,23 @@ public partial class KsefTools : IKsefTools
             }
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-        return invoiceList;
+        McpPagedInvoiceResponse response;
+        try
+        {
+            var invoiceList =  await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
+            response = new McpPagedInvoiceResponse(invoiceList);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
+            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+        }
+        return response;
     }
     
     [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
     [Description("Pobiera fakturę wg numeru faktury")]
-    public async Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury")] string invoiceNumber, CancellationToken cancellationToken)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury")] string invoiceNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -82,13 +92,24 @@ public partial class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-        return invoiceList;
+        McpPagedInvoiceResponse response;
+        try
+        {
+            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
+            response = new McpPagedInvoiceResponse(invoiceList);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
+            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+        }
+        
+        return response;
     }
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_nip", Title = "Pobierz faktury dla kupującego o numerze NIP")]
     [Description("Pobiera faktury dla kupującego o podanym NIP")]
-    public async Task<PagedInvoiceResponse> GetInvoiceByBuyerNip([Description("Numer nip kupujacego")] string nip, CancellationToken cancellationToken)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("Numer nip kupujacego")] string nip, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -104,14 +125,26 @@ public partial class KsefTools : IKsefTools
             BuyerIdentifier = buyerIdentifier,
             DateRange = GetMaxDataRange()
         };
-        
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-        return invoiceList;
+
+        McpPagedInvoiceResponse response;
+        try
+        {
+            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest,
+                _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
+            response = new McpPagedInvoiceResponse(invoiceList);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
+            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+        }
+
+        return response;
     }
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_vateu", Title = "Pobierz faktury dla kupującego o numerze VAT UE")]
     [Description("Pobiera faktury dla kupującego o podanym VAT UE")]
-    public async Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer vat eu kupujacego")] string vatUe, CancellationToken cancellationToken)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer vat eu kupujacego")] string vatUe, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called nip: {vatUe}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -128,8 +161,18 @@ public partial class KsefTools : IKsefTools
             DateRange = GetMaxDataRange()
         };
         
-        var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-        return invoiceList;
+        McpPagedInvoiceResponse response;
+        try
+        {
+            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
+            response = new McpPagedInvoiceResponse(invoiceList);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
+            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+        }
+        return response;
     }
     
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
@@ -137,6 +180,17 @@ public partial class KsefTools : IKsefTools
     public async Task<string> GetInvoiceUrl([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber}");
+
+        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken);
+        return error ?? url;
+    }
+
+    /// <summary>
+    /// Builds the verification URL for an invoice. Returns an empty Url when the invoice was not found,
+    /// or a non-null Error when the KSeF query failed.
+    /// </summary>
+    private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken)
+    {
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
         
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
@@ -148,7 +202,6 @@ public partial class KsefTools : IKsefTools
         _logger.LogDebug($"invoiceMetadataQueryRequest created for ksefNumber: {ksefNumber} DateRange from {invoiceMetadataQueryRequest.DateRange.From} to {invoiceMetadataQueryRequest.DateRange.To}");
 
         PagedInvoiceResponse metadata;
-        
         try
         {
             metadata = await _ksefClient.QueryInvoiceMetadataAsync(
@@ -159,13 +212,13 @@ public partial class KsefTools : IKsefTools
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting invoice metadata");
-            return ex is KSeF.Client.Core.Exceptions.KsefRateLimitException ? ex.Message : KSEF_ERROR;
+            return (string.Empty, $"{KsefError}{ex.Message}");
         }
 
         if (metadata == null || !metadata.Invoices.Any())
         {
             _logger.LogWarning("retuned metadata is null");
-            return string.Empty;
+            return (string.Empty, null);
         }
         
         var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
@@ -173,8 +226,8 @@ public partial class KsefTools : IKsefTools
         var invoicingDate = invoiceMetadata.InvoicingDate;
         
         var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(_vatId, invoicingDate.DateTime, invoiceHash);
-        
-        return invoiceForOnlineUrl;
+
+        return (invoiceForOnlineUrl, null);
     }
     
     [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
@@ -183,7 +236,8 @@ public partial class KsefTools : IKsefTools
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber}");
         
-        var url = await GetInvoiceUrl(ksefNumber, cancellationToken);
+        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken);
+        if (error != null) return GetErroredContentInfo(error);
         if (string.IsNullOrEmpty(url)) return GetErroredContentInfo($"Nie udało się pobrać danych dla numeru KSeF: {ksefNumber}");
         
         var qrCode = QrCodeService.GenerateQrCode(url);
@@ -206,20 +260,20 @@ public partial class KsefTools : IKsefTools
         return contents;
     }
 
-    private static string ConvertToBase64IfNeeded(string originalString)
-    {
-        if (IsBase64String(originalString)) return originalString;
-        
-        var bytes = System.Text.Encoding.UTF8.GetBytes(originalString);
-        var base64String = Convert.ToBase64String(bytes);
-        
-        return base64String;
-    }
-    
-    private static bool IsBase64String(string input)
-    {
-        return (input.Length % 4 == 0) && Base64Regex().IsMatch(input);
-    }
+    // private static string ConvertToBase64IfNeeded(string originalString)
+    // {
+    //     if (IsBase64String(originalString)) return originalString;
+    //     
+    //     var bytes = System.Text.Encoding.UTF8.GetBytes(originalString);
+    //     var base64String = Convert.ToBase64String(bytes);
+    //     
+    //     return base64String;
+    // }
+    //
+    // private static bool IsBase64String(string input)
+    // {
+    //     return (input.Length % 4 == 0) && Base64Regex().IsMatch(input);
+    // }
     
     private static List<ContentBlock> GetErroredContentInfo(string errorInfo)
     {
@@ -243,7 +297,7 @@ public partial class KsefTools : IKsefTools
         };
     }
 
-    [GeneratedRegex(@"^[a-zA-Z0-9\+/]*={0,3}$", RegexOptions.None)]
-    private static partial Regex Base64Regex();
+    // [GeneratedRegex(@"^[a-zA-Z0-9\+/]*={0,3}$", RegexOptions.None)]
+    // private static partial Regex Base64Regex();
 }
 
