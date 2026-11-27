@@ -45,8 +45,8 @@ public partial class KsefTools : IKsefTools
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
     [Description("Pobiera listę faktur z podanego okresu z systemu ksef na podstawie zapytania")]
     public async Task<McpPagedInvoiceResponse> QueryInvoices(
-        [Description("Data wystawienia faktury od")] DateTime dataFakturyOd,
-        [Description("Data wystawienia faktury do")] DateTime dataFakturyDo,
+        [Description("Początek zakresu dat (włącznie). Rodzaj daty (wystawienia, przyjęcia w KSeF lub trwałego zapisu) określa parametr dateType. Zakres od-do może obejmować maksymalnie 3 miesiące")] DateTime dataFakturyOd,
+        [Description("Koniec zakresu dat (włącznie). Rodzaj daty określa parametr dateType")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
         [Description("InvoiceSubjectType")] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
         [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
