@@ -18,6 +18,7 @@ public partial class KsefTools : IKsefTools
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
+    private const string KsefNumberDescription = "Numer KSeF faktury nadany przez system KSeF, np. 5265877635-20250826-0100001AF629-AF";
     private const string DateTypeDescription = "Typ daty, według której filtrowane są faktury: Issue – data wystawienia faktury (domyślnie), Invoicing – data przyjęcia faktury w KSeF (nadania numeru KSeF), PermanentStorage – data trwałego zapisu faktury w repozytorium KSeF";
     private const string KsefError = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
     
@@ -32,7 +33,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze ksef")]
     [Description("Pobiera fakturę po numerze ksef w formacie XML")]
-    public async Task<string> GetInvoice([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken)
+    public async Task<string> GetInvoice([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -81,7 +82,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
     [Description("Pobiera fakturę wg numeru faktury")]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury")] string invoiceNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury nadany przez wystawcę (pole P_2 faktury), np. FV/2026/01/001")] string invoiceNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -109,7 +110,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_nip", Title = "Pobierz faktury dla kupującego o numerze NIP")]
     [Description("Pobiera faktury dla kupującego o podanym NIP")]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("Numer nip kupujacego")] string nip, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("NIP nabywcy – 10 cyfr, bez kresek, spacji i prefiksu PL")] string nip, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -144,7 +145,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoices_for_buyer_by_vateu", Title = "Pobierz faktury dla kupującego o numerze VAT UE")]
     [Description("Pobiera faktury dla kupującego o podanym VAT UE")]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer vat eu kupujacego")] string vatUe, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer VAT UE nabywcy z kodem kraju, bez spacji, np. DE123456789")] string vatUe, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called nip: {vatUe}");
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -177,7 +178,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
     [Description("Zwraca link do faktury po numerze ksef")]
-    public async Task<string> GetInvoiceUrl([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber}");
 
@@ -232,7 +233,7 @@ public partial class KsefTools : IKsefTools
     
     [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
     [Description("Zwraca qr kod do faktury po numerze ksef")]
-    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description("Numer ksef")] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber}");
         
