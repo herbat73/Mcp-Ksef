@@ -11,6 +11,7 @@ using Shared.Consts;
 
 namespace McpKsef.HybridApp.Tests.Tools;
 
+[Collection(EnvironmentVariablesCollection.Name)]
 public class KsefToolsTest : IDisposable
 {
     private readonly Mock<ILogger<KsefTools>> _loggerMock;

@@ -8,6 +8,7 @@ using Shared.Consts;
 
 namespace McpKsef.HybridApp.Tests.Services;
 
+[Collection(EnvironmentVariablesCollection.Name)]
 public class KsefAuthorizationServiceTest : IDisposable
 {
     private readonly Mock<ILogger<KsefAuthorizationService>> _loggerMock;

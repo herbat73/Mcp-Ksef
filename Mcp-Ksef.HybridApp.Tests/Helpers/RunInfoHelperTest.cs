@@ -1,5 +1,6 @@
 ﻿using McpKsef.HybridApp.Helpers;
 
+[Collection(McpKsef.HybridApp.Tests.EnvironmentVariablesCollection.Name)]
 public class RunInfoHelperTest
 {
     private (InfoHelperResultVo result, string output) RunWithEnv(

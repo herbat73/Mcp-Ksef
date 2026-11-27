@@ -6,7 +6,7 @@ public class McpPagedInvoiceResponse : PagedInvoiceResponse
 {
     public bool Error => !string.IsNullOrEmpty(ErrorMessage);
 
-    public string ErrorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
     
     public McpPagedInvoiceResponse(PagedInvoiceResponse pagedInvoiceResponse)
     {
