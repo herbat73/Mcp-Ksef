@@ -1,7 +1,7 @@
 namespace McpKsef.HybridApp.Tests;
 
 /// <summary>
-/// Tests that change process-wide state (environment variables, Console.Out) must belong to this
+/// Tests that change process-wide state (environment variables, Console.Out, Console.Error) must belong to this
 /// collection. xUnit runs it on its own, after all parallel tests, so those tests cannot see each
 /// other's changes.
 /// </summary>

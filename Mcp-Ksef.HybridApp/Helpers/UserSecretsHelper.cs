@@ -48,7 +48,9 @@ public static class UserSecretsHelper
     /// <item>the HTTP host (WebApplication) then uses ASPNETCORE_ENVIRONMENT, then DOTNET_ENVIRONMENT;</item>
     /// <item>the stdio host (Host.CreateApplicationBuilder) uses only DOTNET_ENVIRONMENT.</item>
     /// </list>
-    /// Empty values count as unset. Returns null when nothing is set (the host then runs as Production).
+    /// A variable that is set but empty still overrides the lower-priority one, as in the host, and means
+    /// "not Development". Returns null when no name applies (the host then runs as Production).
+    /// Note: on Windows a variable set to an empty string does not exist at all, so it never overrides.
     /// </summary>
     public static string? GetEnvironmentName(bool useStreamableHttp, string[] args)
     {
@@ -61,15 +63,16 @@ public static class UserSecretsHelper
         if (useStreamableHttp)
         {
             var aspNetCore = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-            if (!string.IsNullOrWhiteSpace(aspNetCore))
+            if (aspNetCore != null)
             {
-                return aspNetCore;
+                return NullIfBlank(aspNetCore);
             }
         }
 
-        var dotnet = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
-        return string.IsNullOrWhiteSpace(dotnet) ? null : dotnet;
+        return NullIfBlank(Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"));
     }
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     /// Copies non-empty KSeF settings from <paramref name="configuration"/> into environment variables.

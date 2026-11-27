@@ -106,14 +106,10 @@ public abstract class AppSettings
     {
         var useHttp = env.Contains("UseHttp") &&
                       bool.TryParse(env["UseHttp"]?.ToString()?.ToLowerInvariant(), out var result) && result;
-        if (args.Length == 0)
-        {
-            return useHttp;
-        }
 
-        useHttp = args.Contains("--http", StringComparer.InvariantCultureIgnoreCase);
-
-        return useHttp;
+        // The environment variable and the argument each enable HTTP; other arguments
+        // (e.g. --environment) must not switch the environment variable off.
+        return useHttp || args.Contains("--http", StringComparer.InvariantCultureIgnoreCase);
     }
     
     /// <summary>
@@ -123,12 +119,9 @@ public abstract class AppSettings
     {
         var useProduction = env.Contains(EnvironmentConsts.UseKsefProduction) &&
                       bool.TryParse(env[EnvironmentConsts.UseKsefProduction]?.ToString()?.ToLowerInvariant(), out var result) && result;
-        if (args.Length == 0)
-        {
-            return useProduction;
-        }
 
-        useProduction = args.Contains("--use-ksef-production", StringComparer.InvariantCultureIgnoreCase);
-        return useProduction;
+        // The environment variable and the argument each select production; other arguments
+        // (e.g. --environment) must not switch the environment variable off.
+        return useProduction || args.Contains("--use-ksef-production", StringComparer.InvariantCultureIgnoreCase);
     }
 }

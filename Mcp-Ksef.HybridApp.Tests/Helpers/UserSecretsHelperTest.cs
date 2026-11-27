@@ -103,7 +103,9 @@ public class UserSecretsHelperTest : IDisposable
     [Theory]
     [InlineData("Production", "Development", "Production")]
     [InlineData(null, "Development", "Development")]
-    [InlineData("", "Development", "Development")]            // empty counts as unset
+    // A set-but-blank ASPNETCORE_ENVIRONMENT still overrides DOTNET_ENVIRONMENT, as in the host, and is not Development.
+    // (" " is used because on Windows a variable set to "" does not exist.)
+    [InlineData(" ", "Development", null)]
     [InlineData("Development", "", "Development")]
     [InlineData(null, "", null)]
     [InlineData(null, null, null)]

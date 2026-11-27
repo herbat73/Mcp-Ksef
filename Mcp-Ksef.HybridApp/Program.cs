@@ -13,7 +13,8 @@ UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(Program).Assembly, use
 
 if (!RunInfoHelper.CheckEnvironmentConsts().IsValid) return;
 
-Console.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
+// Startup messages go to stderr: in stdio mode stdout is the MCP JSON-RPC channel.
+Console.Error.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
 
 var builder = AppBuilderHelper.Setup(useStreamableHttp, args);
 
@@ -22,7 +23,7 @@ builder.Services.AddKSeFClient(options =>
     var useProductionServer = AppSettings.UseProductionServer(Environment.GetEnvironmentVariables(), args);
     options.BaseUrl = useProductionServer ? KsefEnvironmentsUris.PROD : KsefEnvironmentsUris.TEST;
     var serverName = useProductionServer ? "Serwer produkcyjny" : "Serwer testowy";
-    Console.WriteLine($"{serverName} - KSeF API URL: {options.BaseUrl}");
+    Console.Error.WriteLine($"{serverName} - KSeF API URL: {options.BaseUrl}");
     
     options.CustomHeaders =
         builder.Configuration

@@ -222,6 +222,39 @@ public class AppSettingsTest
     }
 
     [Fact]
+    public void UseStreamableHttp_EnvironmentVariableWithUnrelatedArguments_ReturnsTrue()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseStreamableHttp(env, args);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void UseProductionServer_EnvironmentVariableWithUnrelatedArguments_ReturnsTrue()
+    {
+        var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "true" } };
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseProductionServer(env, args);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void UseProductionServer_UnrelatedArgumentsWithoutConfig_ReturnsFalse()
+    {
+        var env = new System.Collections.Hashtable();
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseProductionServer(env, args);
+
+        Assert.False(result);
+    }
+
+    [Fact]
     public void UseProductionServer_ArgumentOverridesEnvironmentVariable()
     {
         var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "false" } };

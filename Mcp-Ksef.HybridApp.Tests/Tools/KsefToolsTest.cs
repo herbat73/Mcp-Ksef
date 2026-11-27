@@ -118,7 +118,7 @@ public class KsefToolsTest : IDisposable
         var result = await service.QueryInvoices(fromDate, toDate, CancellationToken.None);
 
         Assert.IsType<McpPagedInvoiceResponse>(result);
-Assert.Equal(2, result.Invoices.Count);
+        Assert.Equal(2, result.Invoices.Count);
         _authorizationServiceMock.Verify(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()), Times.Once);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f => f.DateRange.From == fromDate && f.DateRange.To == toDate && f.SubjectType == InvoiceSubjectType.Subject1), 
@@ -187,7 +187,7 @@ Assert.Equal(2, result.Invoices.Count);
     
         var result = await service.GetInvoiceByInvoiceNumber(invoiceNumber, CancellationToken.None);
     
-Assert.Single(result.Invoices);
+        Assert.Single(result.Invoices);
         Assert.Equal(invoiceNumber, result.Invoices.ToArray()[0].InvoiceNumber);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f =>
@@ -263,7 +263,7 @@ Assert.Single(result.Invoices);
     
         var result = await service.GetInvoiceByBuyerNip(buyerNip, CancellationToken.None);
 
-Assert.Single(result.Invoices);
+        Assert.Single(result.Invoices);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f => 
                 f.BuyerIdentifier != null &&
@@ -303,7 +303,7 @@ Assert.Single(result.Invoices);
     
         var result = await service.GetInvoiceByBuyerVatUe(vatUe, CancellationToken.None);
 
-Assert.Single(result.Invoices);
+        Assert.Single(result.Invoices);
         _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
             It.Is<InvoiceQueryFilters>(f => 
                 f.BuyerIdentifier != null &&
@@ -1152,7 +1152,7 @@ Assert.Single(result.Invoices);
 
         var result = await CallSearch(service, method);
 
-Assert.Equal((0, 10), captured());
+        Assert.Equal((0, 10), captured());
     }
 
     [Theory]
@@ -1164,7 +1164,7 @@ Assert.Equal((0, 10), captured());
 
         var result = await CallSearch(service, method, pageOffset: 3, pageSize: 100);
 
-Assert.Equal((3, 100), captured());
+        Assert.Equal((3, 100), captured());
     }
 
     [Theory]
@@ -1177,7 +1177,7 @@ Assert.Equal((3, 100), captured());
 
         var result = await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, pageOffset: pageOffset, pageSize: pageSize);
 
-Assert.Equal((pageOffset, pageSize), captured());
+        Assert.Equal((pageOffset, pageSize), captured());
     }
 
     [Theory]
