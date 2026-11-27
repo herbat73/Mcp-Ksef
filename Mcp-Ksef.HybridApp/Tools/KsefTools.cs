@@ -48,7 +48,7 @@ public partial class KsefTools : IKsefTools
         [Description("Początek zakresu dat (włącznie). Rodzaj daty (wystawienia, przyjęcia w KSeF lub trwałego zapisu) określa parametr dateType. Zakres od-do może obejmować maksymalnie 3 miesiące")] DateTime dataFakturyOd,
         [Description("Koniec zakresu dat (włącznie). Rodzaj daty określa parametr dateType")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
-        [Description("InvoiceSubjectType")] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description("Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony")] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
         [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {       
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(QueryInvoices)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo} invoiceSubjectType {invoiceSubjectType} dateType {dateType}");
