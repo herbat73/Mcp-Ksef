@@ -42,17 +42,7 @@ public abstract class AppSettings
         var settings = new T();
         config.Bind(settings);
 
-        if (args.Length == 0)
-        {
-            return settings;
-        }
-
-        if (args.Length == 1)
-        {
-            settings.Help = true;
-            return settings;
-        }
-
+        // Unknown arguments set Help in Parse; a single known argument (e.g. --http) is not a request for help.
         return settings;
     }
 
@@ -75,26 +65,32 @@ public abstract class AppSettings
             return settings;
         }
 
-        for (var i = 0; i < args.Length; i++)
+        // Same flag rules as UseStreamableHttp/UseProductionServer, so these settings match the transport and
+        // server the app actually uses. --use-production is the older spelling and is still accepted.
+        settings.UseHttp = GetFlag(args, HttpFlag) ?? settings.UseHttp;
+        settings.UseProduction = GetFlag(args, UseProductionFlag) ?? GetFlag(args, LegacyUseProductionFlag) ?? settings.UseProduction;
+
+        // Anything left after the app's flags and the host's --environment is unknown, which means help.
+        var rest = RemoveAppFlags(args);
+        for (var i = 0; i < rest.Length; i++)
         {
-            var arg = args[i];
-            switch (arg)
+            var arg = rest[i];
+            if (string.Equals(arg, EnvironmentArgument, StringComparison.OrdinalIgnoreCase))
             {
-                case "--http":
-                    settings.UseHttp = true;
-                    break;
-                case "--use-production":
-                    settings.UseProduction= true;
-                    break;
-                case "--help":
-                default:
-                    settings.Help = true;
-                    break;
+                i++; // skip its value
+                continue;
             }
+            if (arg.StartsWith(EnvironmentArgument + "=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            settings.Help = true;
         }
 
         return settings;
     }
+
+    private const string EnvironmentArgument = "--environment";
 
     /// <summary>
     /// Checks whether to use streamable HTTP or not.
@@ -131,20 +127,34 @@ public abstract class AppSettings
     /// <summary>Command-line flag that selects the KSeF production server.</summary>
     public const string UseProductionFlag = "--use-ksef-production";
 
-    private static readonly string[] AppFlags = [HttpFlag, UseProductionFlag];
+    /// <summary>Older spelling of <see cref="UseProductionFlag"/>, still accepted by <see cref="Parse{T}"/>.</summary>
+    public const string LegacyUseProductionFlag = "--use-production";
+
+    private static readonly string[] AppFlags = [HttpFlag, UseProductionFlag, LegacyUseProductionFlag];
 
     /// <summary>
-    /// Reads an app flag from the command line: <c>--flag</c> means true, <c>--flag=true|false</c> sets the value.
-    /// The last occurrence wins. Returns null when the flag is absent or its value is not a boolean.
+    /// Reads an app flag from the command line. <c>--flag</c> means true; the value can be given as
+    /// <c>--flag=true|false</c> or <c>--flag true|false</c>. The last occurrence wins.
+    /// Returns null when the flag is absent or its <c>=</c> value is not a boolean.
     /// </summary>
     public static bool? GetFlag(string[] args, string flag)
     {
         bool? value = null;
-        foreach (var arg in args)
+        for (var i = 0; i < args.Length; i++)
         {
+            var arg = args[i];
             if (string.Equals(arg, flag, StringComparison.OrdinalIgnoreCase))
             {
-                value = true;
+                if (i + 1 < args.Length && bool.TryParse(args[i + 1], out var next))
+                {
+                    // "--flag false" must not count as "--flag": that would e.g. select the production server.
+                    value = next;
+                    i++;
+                }
+                else
+                {
+                    value = true;
+                }
             }
             else if (arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase))
             {
@@ -155,14 +165,32 @@ public abstract class AppSettings
     }
 
     /// <summary>
-    /// Removes the app's own flags (<see cref="HttpFlag"/>, <see cref="UseProductionFlag"/>) from the arguments.
+    /// Removes the app's own flags (<see cref="HttpFlag"/>, <see cref="UseProductionFlag"/>,
+    /// <see cref="LegacyUseProductionFlag"/>) and their true/false values from the arguments.
     /// .NET configuration reads <c>--key value</c> pairs, so a valueless flag would otherwise swallow the next
     /// argument: <c>--http --environment Development</c> would lose <c>--environment</c>. Pass the result to the
     /// host builder and to anything else that parses arguments with .NET configuration.
     /// </summary>
-    public static string[] RemoveAppFlags(string[] args) =>
-        args.Where(arg => !AppFlags.Any(flag =>
-                string.Equals(arg, flag, StringComparison.OrdinalIgnoreCase) ||
-                arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase)))
-            .ToArray();
+    public static string[] RemoveAppFlags(string[] args)
+    {
+        var result = new List<string>();
+        for (var i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (AppFlags.Any(flag => string.Equals(arg, flag, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (i + 1 < args.Length && bool.TryParse(args[i + 1], out _))
+                {
+                    i++; // also drop "--flag true|false"'s value
+                }
+                continue;
+            }
+            if (AppFlags.Any(flag => arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+            result.Add(arg);
+        }
+        return result.ToArray();
+    }
 }

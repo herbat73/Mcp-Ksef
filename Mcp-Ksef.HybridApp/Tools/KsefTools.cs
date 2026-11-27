@@ -309,11 +309,21 @@ public partial class KsefTools : IKsefTools
         // Label the QR with the number as KSeF stores it, not as typed: it is printed on the invoice.
         var officialKsefNumber = link.KsefNumber;
 
-        var qrCode = QrCodeService.GenerateQrCode(link.Url);
-        if (qrCode.Length == 0) throw new McpException($"Nie udało się wygenerować kodu QR dla numeru KSeF: {officialKsefNumber}");
+        byte[] labeledQr;
+        try
+        {
+            var qrCode = QrCodeService.GenerateQrCode(link.Url);
+            if (qrCode.Length == 0) throw new McpException($"Nie udało się wygenerować kodu QR dla numeru KSeF: {officialKsefNumber}");
 
-        var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, officialKsefNumber);
-        if (labeledQr.Length == 0) throw new McpException($"Nie udało się podpisać kodu QR numerem KSeF: {officialKsefNumber}");
+            labeledQr = QrCodeService.AddLabelToQrCode(qrCode, officialKsefNumber);
+            if (labeledQr.Length == 0) throw new McpException($"Nie udało się podpisać kodu QR numerem KSeF: {officialKsefNumber}");
+        }
+        catch (Exception ex) when (ex is not McpException)
+        {
+            // Without this the SDK would report only a generic error with no description.
+            _logger.LogError(ex, "Error generating QR code");
+            throw new McpException($"Nie udało się wygenerować kodu QR dla numeru KSeF: {officialKsefNumber} - {ex.Message}", ex);
+        }
 
         // FromBytes base64-encodes the PNG, as the MCP image content requires.
         var image = ImageContentBlock.FromBytes(labeledQr, "image/png");
@@ -338,8 +348,10 @@ public partial class KsefTools : IKsefTools
             {
                 return TimeZoneInfo.FindSystemTimeZoneById(id);
             }
-            catch (TimeZoneNotFoundException)
+            catch (Exception)
             {
+                // Not found, or invalid/unreadable time zone data: try the next id, then fall back to UTC,
+                // so a broken time zone database cannot stop every KSeF tool from loading.
             }
         }
         return TimeZoneInfo.Utc;
