@@ -16,7 +16,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.12" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+    <!-- Pinned to 2.3.1 on purpose: 2.4.0 fails to serialize tool results with annotated content blocks
+         (modelcontextprotocol/csharp-sdk#2012, fixed by #2039 but not yet released at the time of pinning).
+         Before upgrading, check that the release includes #2039 and run the test
+         KsefToolsTest.GetInvoiceQrWithKsef_Result_SerializesAsCallToolResult. -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.1" />
   </ItemGroup>
 
 </Project>

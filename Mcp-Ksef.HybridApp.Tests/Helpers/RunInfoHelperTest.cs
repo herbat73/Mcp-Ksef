@@ -1,5 +1,6 @@
 ﻿using McpKsef.HybridApp.Helpers;
 
+[Collection(McpKsef.HybridApp.Tests.EnvironmentVariablesCollection.Name)]
 public class RunInfoHelperTest
 {
     private (InfoHelperResultVo result, string output) RunWithEnv(
@@ -10,9 +11,9 @@ public class RunInfoHelperTest
         string keyFilePath = null,
         string privateKeyPassword = null)
     {
-        var originalOut = Console.Out;
+        var originalError = Console.Error;
         var sw = new StringWriter();
-        Console.SetOut(sw);
+        Console.SetError(sw);
 
         var origKsefToken = Environment.GetEnvironmentVariable(Shared.Consts.EnvironmentConsts.KsefToken);
         var origVatId = Environment.GetEnvironmentVariable(Shared.Consts.EnvironmentConsts.VatId);
@@ -42,7 +43,7 @@ public class RunInfoHelperTest
             Environment.SetEnvironmentVariable(Shared.Consts.EnvironmentConsts.KsefPrivateKeyPassword, privateKeyPassword);
 
             var result = McpKsef.HybridApp.Helpers.RunInfoHelper.CheckEnvironmentConsts();
-            Console.Out.Flush();
+            Console.Error.Flush();
             return (result, sw.ToString());
         }
         finally
@@ -62,7 +63,7 @@ public class RunInfoHelperTest
                 try { File.Delete(createdKey); } catch { }
             }
 
-            Console.SetOut(originalOut);
+            Console.SetError(originalError);
         }
     }
 

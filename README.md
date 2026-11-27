@@ -4,6 +4,8 @@
 [![](https://img.shields.io/badge/License-MIT-red.svg 'MIT License')](https://opensource.org/licenses/MIT)
 [![Build](https://github.com/herbat73/Mcp-Ksef/actions/workflows/dotnet_build_and_test.yml//badge.svg)](https://github.com/herbat73/Mcp-Ksef/actions/workflows/dotnet_build_and_test.yml)
 [![DockerPull](https://img.shields.io/docker/pulls/herbat73/mcp-ksef)](https://hub.docker.com/r/herbat73/mcp-ksef)
+[![.NET](https://img.shields.io/badge/.NET-9-blue.svg)](https://dotnet.microsoft.com/download/dotnet/9.0)
+[![Release](https://img.shields.io/github/v/release/herbat73/mcp-ksef)](https://github.com/herbat73/mcp-ksef/releases/latest)
 
 To jest serwer MCP dla KSeF - Krajowy System e-Faktur to platforma do wystawiania, przesyłania, otrzymywania i przechowywania faktur.
 
@@ -34,7 +36,7 @@ Instrukcje dla KSeF
 | Pobierz link do faktury po numerze ksef                                                                                                                            | `#get_invoice_url_by_ksef` |
 | Pobierz QR kod do faktury po numerze ksef                                                                                                                          | `#get_invoice_qr_ksef` |
 
-(*) repozytorium KSeF ma ograniczenie na zwrot listy faktur do maksymalnie 3 miesiące wstecz
+(*) KSeF pozwala wyszukiwać faktury w zakresie dat obejmującym maksymalnie 100 dni, dlatego te narzędzia przeszukują ostatnie 100 dni
 
 ## Jak użyć
 

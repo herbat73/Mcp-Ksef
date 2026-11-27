@@ -6,16 +6,18 @@ namespace McpKsef.HybridApp.Tools;
 public interface IKsefTools
 {
     Task<string> GetInvoice(string ksefNumber, CancellationToken cancellationToken);
-    Task<PagedInvoiceResponse> QueryInvoices(
+    Task<McpPagedInvoiceResponse> QueryInvoices(
         DateTime dataFakturyOd,
         DateTime dataFakturyDo,
         CancellationToken cancellationToken,
         InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
-        DateType dateType = DateType.Issue
+        DateType dateType = DateType.Issue,
+        int pageOffset = 0,
+        int pageSize = 10
     );
-    Task<PagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken);
-    Task<PagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken);
-    Task<PagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken);
-    Task<string> GetInvoiceUrl(string ksefNumber, CancellationToken cancellationToken);
-    Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef(string ksefNumber, CancellationToken cancellationToken);
+    Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
+    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
+    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
+    Task<string> GetInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
+    Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
 }

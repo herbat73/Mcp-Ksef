@@ -222,6 +222,96 @@ public class AppSettingsTest
     }
 
     [Fact]
+    public void UseStreamableHttp_EnvironmentVariableWithUnrelatedArguments_ReturnsTrue()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseStreamableHttp(env, args);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void UseProductionServer_EnvironmentVariableWithUnrelatedArguments_ReturnsTrue()
+    {
+        var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "true" } };
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseProductionServer(env, args);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void UseProductionServer_UnrelatedArgumentsWithoutConfig_ReturnsFalse()
+    {
+        var env = new System.Collections.Hashtable();
+        var args = new[] { "--environment", "Development" };
+
+        var result = AppSettings.UseProductionServer(env, args);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void UseProductionServer_ExplicitFalseFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "true" } };
+        var args = new[] { "--use-ksef-production=false" };
+
+        Assert.False(AppSettings.UseProductionServer(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_ExplicitFalseFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--http=false" };
+
+        Assert.False(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_ExplicitTrueFlag_OverridesEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "false" } };
+        var args = new[] { "--http=true" };
+
+        Assert.True(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Fact]
+    public void UseStreamableHttp_InvalidFlagValue_FallsBackToEnvironmentVariable()
+    {
+        var env = new System.Collections.Hashtable { { "UseHttp", "true" } };
+        var args = new[] { "--http=maybe" };
+
+        Assert.True(AppSettings.UseStreamableHttp(env, args));
+    }
+
+    [Theory]
+    [InlineData(new[] { "--http" }, true)]
+    [InlineData(new[] { "--HTTP" }, true)]
+    [InlineData(new[] { "--http=false" }, false)]
+    [InlineData(new[] { "--http", "--http=false" }, false)]   // last occurrence wins
+    [InlineData(new[] { "--http=false", "--http" }, true)]
+    [InlineData(new[] { "--environment", "Development" }, null)]
+    [InlineData(new string[0], null)]
+    public void GetFlag_ReadsFlagFromArguments(string[] args, bool? expected)
+    {
+        Assert.Equal(expected, AppSettings.GetFlag(args, AppSettings.HttpFlag));
+    }
+
+    [Fact]
+    public void RemoveAppFlags_KeepsOtherArgumentsInOrder()
+    {
+        var args = new[] { "--http", "--environment", "Development", "--use-ksef-production=true", "--Use-Ksef-Production", "--other=1" };
+
+        Assert.Equal(new[] { "--environment", "Development", "--other=1" }, AppSettings.RemoveAppFlags(args));
+    }
+
+    [Fact]
     public void UseProductionServer_ArgumentOverridesEnvironmentVariable()
     {
         var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "false" } };
@@ -230,6 +320,71 @@ public class AppSettingsTest
         var result = AppSettings.UseProductionServer(env, args);
 
         Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(new[] { "--use-ksef-production", "false" }, false)]
+    [InlineData(new[] { "--use-ksef-production", "FALSE" }, false)]
+    [InlineData(new[] { "--use-ksef-production", "true" }, true)]
+    [InlineData(new[] { "--use-ksef-production", "--environment", "Development" }, true)]
+    [InlineData(new[] { "--use-ksef-production", "Development" }, true)]   // a non-boolean next argument is not the value
+    public void GetFlag_SpaceSeparatedValue_IsRead(string[] args, bool expected)
+    {
+        Assert.Equal(expected, AppSettings.GetFlag(args, AppSettings.UseProductionFlag));
+    }
+
+    [Fact]
+    public void UseProductionServer_SpaceSeparatedFalse_DoesNotSelectProduction()
+    {
+        // Regression: "--use-ksef-production false" used to select the production server.
+        var env = new System.Collections.Hashtable { { "KSEF_USEPRODUCTIONSERVER", "true" } };
+
+        Assert.False(AppSettings.UseProductionServer(env, new[] { "--use-ksef-production", "false" }));
+        Assert.False(AppSettings.UseProductionServer(new System.Collections.Hashtable(), new[] { "--use-ksef-production", "false" }));
+    }
+
+    [Theory]
+    [InlineData(new[] { "--use-ksef-production", "false", "--environment", "Development" }, new[] { "--environment", "Development" })]
+    [InlineData(new[] { "--http", "true" }, new string[0])]
+    [InlineData(new[] { "--use-production", "--environment=Development" }, new[] { "--environment=Development" })]
+    [InlineData(new[] { "--http", "Development" }, new[] { "Development" })]   // not a boolean, so not the flag's value
+    public void RemoveAppFlags_AlsoRemovesSpaceSeparatedBooleanValue(string[] args, string[] expected)
+    {
+        Assert.Equal(expected, AppSettings.RemoveAppFlags(args));
+    }
+
+    [Fact]
+    public void Parse_SingleKnownFlag_IsNotHelp()
+    {
+        var settings = AppSettings.Parse<TestAppSettings>(CreateConfiguration(new Dictionary<string, string>()), new[] { "--http" });
+
+        Assert.True(settings.UseHttp);
+        Assert.False(settings.Help);
+    }
+
+    [Theory]
+    [InlineData(new[] { "--http=true", "--environment", "Development" }, true, false)]
+    [InlineData(new[] { "--http", "false" }, false, false)]
+    [InlineData(new[] { "--use-ksef-production" }, false, true)]
+    [InlineData(new[] { "--use-ksef-production=true", "--environment=Development" }, false, true)]
+    [InlineData(new[] { "--use-production" }, false, true)]
+    public void Parse_UnderstandsFlagFormsAndEnvironment(string[] args, bool useHttp, bool useProduction)
+    {
+        var settings = AppSettings.Parse<TestAppSettings>(CreateConfiguration(new Dictionary<string, string>()), args);
+
+        Assert.Equal(useHttp, settings.UseHttp);
+        Assert.Equal(useProduction, settings.UseProduction);
+        Assert.False(settings.Help);
+    }
+
+    [Fact]
+    public void Parse_UnknownArgumentAmongKnownOnes_SetsHelp()
+    {
+        var settings = AppSettings.Parse<TestAppSettings>(CreateConfiguration(new Dictionary<string, string>()),
+            new[] { "--http", "--environment", "Development", "--bogus" });
+
+        Assert.True(settings.UseHttp);
+        Assert.True(settings.Help);
     }
 
     private class TestAppSettings : AppSettings
