@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,6 +9,7 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <RootNamespace>McpKsef.HybridApp</RootNamespace>
     <NoWarn>CS8604;CS0618;CS8625;CS8629</NoWarn>
+    <UserSecretsId>8fb2c720-0da9-4bb5-9e7f-81cc6aeda3ae</UserSecretsId>
   </PropertyGroup>
   
   <ItemGroup>

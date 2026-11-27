@@ -5,6 +5,9 @@ using McpKsef.HybridApp.Helpers;
 using McpKsef.HybridApp.Services;
 using Shared.Consts;
 
+// In Development, KSeF settings can come from user secrets (dotnet user-secrets) instead of launchSettings.json.
+UserSecretsHelper.LoadIntoEnvironmentIfDevelopment(typeof(Program).Assembly);
+
 if (!RunInfoHelper.CheckEnvironmentConsts().IsValid) return;
 
 Console.WriteLine($"Starting {AppConsts.AppName} for VatId : {Environment.GetEnvironmentVariable(EnvironmentConsts.VatId)}");
