@@ -1107,4 +1107,138 @@ public class KsefToolsTest : IDisposable
         await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None);
         Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
     }
+
+    private Func<(int? PageOffset, int? PageSize)?> CapturePaging()
+    {
+        (int?, int?)? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((_, _, offset, size, _, _) => captured = (offset, size))
+            .ReturnsAsync(new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() });
+        return () => captured;
+    }
+
+    /// <summary>Calls one of the four paged search tools by name.</summary>
+    private static Task<McpPagedInvoiceResponse> CallSearch(KsefTools service, string method, int? pageOffset = null, int? pageSize = null)
+    {
+        var offset = pageOffset ?? 0;
+        var size = pageSize ?? 10;
+        var useDefaults = pageOffset == null && pageSize == null;
+        return method switch
+        {
+            nameof(KsefTools.QueryInvoices) => useDefaults
+                ? service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), CancellationToken.None)
+                : service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), CancellationToken.None, pageOffset: offset, pageSize: size),
+            nameof(KsefTools.GetInvoiceByInvoiceNumber) => useDefaults
+                ? service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None)
+                : service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None, pageOffset: offset, pageSize: size),
+            nameof(KsefTools.GetInvoiceByBuyerNip) => useDefaults
+                ? service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None)
+                : service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, pageOffset: offset, pageSize: size),
+            nameof(KsefTools.GetInvoiceByBuyerVatUe) => useDefaults
+                ? service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None)
+                : service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None, pageOffset: offset, pageSize: size),
+            _ => throw new ArgumentOutOfRangeException(nameof(method), method, null)
+        };
+    }
+
+    public static TheoryData<string> SearchMethods() => new()
+    {
+        nameof(KsefTools.QueryInvoices),
+        nameof(KsefTools.GetInvoiceByInvoiceNumber),
+        nameof(KsefTools.GetInvoiceByBuyerNip),
+        nameof(KsefTools.GetInvoiceByBuyerVatUe)
+    };
+
+    [Theory]
+    [MemberData(nameof(SearchMethods))]
+    public async Task SearchMethods_WithoutPaging_RequestFirstPageOfTen(string method)
+    {
+        var captured = CapturePaging();
+        var service = CreateService();
+
+        var result = await CallSearch(service, method);
+
+        Assert.False(result.Error);
+        Assert.Equal((0, 10), captured());
+    }
+
+    [Theory]
+    [MemberData(nameof(SearchMethods))]
+    public async Task SearchMethods_PassPagingToQuery(string method)
+    {
+        var captured = CapturePaging();
+        var service = CreateService();
+
+        var result = await CallSearch(service, method, pageOffset: 3, pageSize: 100);
+
+        Assert.False(result.Error);
+        Assert.Equal((3, 100), captured());
+    }
+
+    [Theory]
+    [InlineData(0, 10)]
+    [InlineData(5, 250)]
+    public async Task SearchMethods_AcceptBoundaryPaging(int pageOffset, int pageSize)
+    {
+        var captured = CapturePaging();
+        var service = CreateService();
+
+        var result = await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, pageOffset: pageOffset, pageSize: pageSize);
+
+        Assert.False(result.Error);
+        Assert.Equal((pageOffset, pageSize), captured());
+    }
+
+    [Theory]
+    [InlineData(-1, 10, "pageOffset")]
+    [InlineData(0, 9, "pageSize")]
+    [InlineData(0, 251, "pageSize")]
+    [InlineData(0, 0, "pageSize")]
+    public async Task SearchMethods_InvalidPaging_ReturnErrorWithoutCallingKsef(int pageOffset, int pageSize, string invalidParameter)
+    {
+        CapturePaging();
+        var service = CreateService();
+
+        foreach (var method in SearchMethods())
+        {
+            var result = await CallSearch(service, method, pageOffset, pageSize);
+
+            Assert.True(result.Error, method);
+            Assert.Contains(invalidParameter, result.ErrorMessage);
+        }
+
+        _authorizationServiceMock.Verify(x => x.VerifyAuthToken(It.IsAny<CancellationToken>()), Times.Never);
+        _ksefClientMock.Verify(x => x.QueryInvoiceMetadataAsync(
+            It.IsAny<InvoiceQueryFilters>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(),
+            It.IsAny<SortOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SearchMethods_PassHasMoreFromKsef()
+    {
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedInvoiceResponse
+            {
+                Invoices = new List<InvoiceSummary> { new() { KsefNumber = "INV-001" } },
+                HasMore = true
+            });
+        var service = CreateService();
+
+        var result = await service.QueryInvoices(new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), CancellationToken.None, pageOffset: 1);
+
+        Assert.True(result.HasMore);
+        Assert.Single(result.Invoices);
+    }
 }

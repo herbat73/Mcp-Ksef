@@ -18,11 +18,16 @@ public partial class KsefTools : IKsefTools
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
-    private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wynik zawiera tylko pierwszą stronę: HasMore = true oznacza, że jest więcej faktur, a IsTruncated = true, że wynik został obcięty. Gdy zapytanie się nie powiedzie, Error = true, a ErrorMessage zawiera opis błędu.";
+    private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wyniki są stronicowane: domyślnie zwracana jest pierwsza strona (pageOffset = 0) po 10 faktur. Gdy HasMore = true, pobierz kolejną stronę, zwiększając pageOffset o 1. IsTruncated = true oznacza, że KSeF obciął wynik – zawęź zakres dat. Gdy zapytanie się nie powiedzie, Error = true, a ErrorMessage zawiera opis błędu.";
     private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
     private const string InvoiceSubjectTypeDescription = "Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony";
     private const string KsefNumberDescription = "Numer KSeF faktury nadany przez system KSeF, np. 5265877635-20250826-0100001AF629-AF";
     private const string DateTypeDescription = "Typ daty, według której filtrowane są faktury: Issue – data wystawienia faktury (domyślnie), Invoicing – data przyjęcia faktury w KSeF (nadania numeru KSeF), PermanentStorage – data trwałego zapisu faktury w repozytorium KSeF";
+    private const int DefaultPageSize = 10;
+    private const int MinPageSize = 10;
+    private const int MaxPageSize = 250;
+    private const string PageOffsetDescription = "Numer strony wyników, liczony od 0 (domyślnie 0). Użyj kolejnych wartości, gdy w poprzednim wyniku HasMore = true.";
+    private const string PageSizeDescription = "Liczba faktur na stronie, od 10 do 250 (domyślnie 10).";
     private const string KsefError = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
     
     public KsefTools(ILogger<KsefTools> logger, IKsefAuthorizationService ksefAuthorization, IKSeFClient ksefClient, IVerificationLinkService verificationLinkService)
@@ -53,10 +58,11 @@ public partial class KsefTools : IKsefTools
         [Description("Koniec zakresu dat (włącznie). Rodzaj daty określa parametr dateType")] DateTime dataFakturyDo,
         CancellationToken cancellationToken,
         [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
-        [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
-    {       
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(QueryInvoices)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo} invoiceSubjectType {invoiceSubjectType} dateType {dateType}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+        [Description(DateTypeDescription)] DateType dateType = DateType.Issue,
+        [Description(PageOffsetDescription)] int pageOffset = 0,
+        [Description(PageSizeDescription)] int pageSize = DefaultPageSize)
+    {
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(QueryInvoices)} called dataFakturyOd: {dataFakturyOd} dataFakturyDo {dataFakturyDo} invoiceSubjectType {invoiceSubjectType} dateType {dateType} pageOffset {pageOffset} pageSize {pageSize}");
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
@@ -68,120 +74,118 @@ public partial class KsefTools : IKsefTools
                 DateType = dateType
             }
         };
-        
-        McpPagedInvoiceResponse response;
-        try
-        {
-            var invoiceList =  await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-            response = new McpPagedInvoiceResponse(invoiceList);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
-            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
-        }
-        return response;
+
+        return await QueryInvoicePage(invoiceMetadataQueryRequest, pageOffset, pageSize, cancellationToken);
     }
-    
+
     [McpServerTool(Name = "get_invoice_by_invoice_number", Title = "Pobierz fakturę o numerze faktury")]
     [Description("Wyszukuje fakturę po numerze nadanym przez wystawcę (np. FV/2026/01/001). " + SearchScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber([Description("Numer faktury nadany przez wystawcę (pole P_2 faktury), np. FV/2026/01/001")] string invoiceNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber(
+        [Description("Numer faktury nadany przez wystawcę (pole P_2 faktury), np. FV/2026/01/001")] string invoiceNumber,
+        CancellationToken cancellationToken,
+        [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description(DateTypeDescription)] DateType dateType = DateType.Issue,
+        [Description(PageOffsetDescription)] int pageOffset = 0,
+        [Description(PageSizeDescription)] int pageSize = DefaultPageSize)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-        
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByInvoiceNumber)} called invoiceNumber: {invoiceNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType} pageOffset: {pageOffset} pageSize: {pageSize}");
+
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
             InvoiceNumber = invoiceNumber,
             DateRange = GetMaxDataRange(dateType)
         };
-        
-        McpPagedInvoiceResponse response;
-        try
-        {
-            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-            response = new McpPagedInvoiceResponse(invoiceList);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
-            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
-        }
-        
-        return response;
+
+        return await QueryInvoicePage(invoiceMetadataQueryRequest, pageOffset, pageSize, cancellationToken);
     }
-    
+
     [McpServerTool(Name = "get_invoices_for_buyer_by_nip", Title = "Pobierz faktury dla kupującego o numerze NIP")]
     [Description("Wyszukuje faktury wystawione dla polskiego nabywcy o podanym NIP. " + SearchScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip([Description("NIP nabywcy – 10 cyfr, bez kresek, spacji i prefiksu PL")] string nip, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip(
+        [Description("NIP nabywcy – 10 cyfr, bez kresek, spacji i prefiksu PL")] string nip,
+        CancellationToken cancellationToken,
+        [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description(DateTypeDescription)] DateType dateType = DateType.Issue,
+        [Description(PageOffsetDescription)] int pageOffset = 0,
+        [Description(PageSizeDescription)] int pageSize = DefaultPageSize)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-
-        var buyerIdentifier = new BuyerIdentifier
-        {
-            Type = BuyerIdentifierType.Nip,
-            Value = nip
-        };
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerNip)} called nip: {nip} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType} pageOffset: {pageOffset} pageSize: {pageSize}");
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
-            BuyerIdentifier = buyerIdentifier,
+            BuyerIdentifier = new BuyerIdentifier
+            {
+                Type = BuyerIdentifierType.Nip,
+                Value = nip
+            },
             DateRange = GetMaxDataRange(dateType)
         };
 
-        McpPagedInvoiceResponse response;
-        try
-        {
-            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest,
-                _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-            response = new McpPagedInvoiceResponse(invoiceList);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
-            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
-        }
-
-        return response;
+        return await QueryInvoicePage(invoiceMetadataQueryRequest, pageOffset, pageSize, cancellationToken);
     }
-    
+
     [McpServerTool(Name = "get_invoices_for_buyer_by_vateu", Title = "Pobierz faktury dla kupującego o numerze VAT UE")]
     [Description("Wyszukuje faktury wystawione dla nabywcy z innego kraju UE o podanym numerze VAT UE. " + SearchScopeDescription + " " + SearchResultDescription)]
-    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe([Description("Numer VAT UE nabywcy z kodem kraju, bez spacji, np. DE123456789")] string vatUe, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    public async Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe(
+        [Description("Numer VAT UE nabywcy z kodem kraju, bez spacji, np. DE123456789")] string vatUe,
+        CancellationToken cancellationToken,
+        [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
+        [Description(DateTypeDescription)] DateType dateType = DateType.Issue,
+        [Description(PageOffsetDescription)] int pageOffset = 0,
+        [Description(PageSizeDescription)] int pageSize = DefaultPageSize)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called vatUe: {vatUe} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
-        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
-
-        var buyerIdentifier = new BuyerIdentifier
-        {
-            Type = BuyerIdentifierType.VatUe,
-            Value = vatUe
-        };
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceByBuyerVatUe)} called vatUe: {vatUe} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType} pageOffset: {pageOffset} pageSize: {pageSize}");
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
-            BuyerIdentifier = buyerIdentifier,
+            BuyerIdentifier = new BuyerIdentifier
+            {
+                Type = BuyerIdentifierType.VatUe,
+                Value = vatUe
+            },
             DateRange = GetMaxDataRange(dateType)
         };
-        
-        McpPagedInvoiceResponse response;
+
+        return await QueryInvoicePage(invoiceMetadataQueryRequest, pageOffset, pageSize, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates the paging parameters and queries one page of invoice metadata.
+    /// Errors (invalid paging or a failed KSeF call) are returned in the response, not thrown.
+    /// </summary>
+    private async Task<McpPagedInvoiceResponse> QueryInvoicePage(InvoiceQueryFilters filters, int pageOffset, int pageSize, CancellationToken cancellationToken)
+    {
+        if (pageOffset < 0)
+        {
+            return new McpPagedInvoiceResponse($"Nieprawidłowy numer strony pageOffset: {pageOffset}. Podaj wartość 0 lub większą.");
+        }
+        if (pageSize < MinPageSize || pageSize > MaxPageSize)
+        {
+            return new McpPagedInvoiceResponse($"Nieprawidłowy rozmiar strony pageSize: {pageSize}. Podaj wartość od {MinPageSize} do {MaxPageSize}.");
+        }
+
+        await _ksefAuthorization.VerifyAuthToken(cancellationToken);
+
         try
         {
-            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(invoiceMetadataQueryRequest, _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken: cancellationToken);
-            response = new McpPagedInvoiceResponse(invoiceList);
+            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(
+                requestPayload: filters,
+                accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
+                pageOffset: pageOffset,
+                pageSize: pageSize,
+                cancellationToken: cancellationToken);
+            return new McpPagedInvoiceResponse(invoiceList);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
-            response = new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+            return new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
         }
-        return response;
     }
-    
+
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
     [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono, albo komunikat błędu, gdy zapytanie do KSeF się nie powiodło.")]
     public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)

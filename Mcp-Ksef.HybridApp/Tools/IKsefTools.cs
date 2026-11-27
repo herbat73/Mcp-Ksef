@@ -11,11 +11,13 @@ public interface IKsefTools
         DateTime dataFakturyDo,
         CancellationToken cancellationToken,
         InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1,
-        DateType dateType = DateType.Issue
+        DateType dateType = DateType.Issue,
+        int pageOffset = 0,
+        int pageSize = 10
     );
-    Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
-    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
-    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
+    Task<McpPagedInvoiceResponse> GetInvoiceByInvoiceNumber(string invoiceNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
+    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerNip(string nip, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
+    Task<McpPagedInvoiceResponse> GetInvoiceByBuyerVatUe(string vatUe, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue, int pageOffset = 0, int pageSize = 10);
     Task<string> GetInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
     Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, DateType dateType = DateType.Issue);
 }
