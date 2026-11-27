@@ -325,17 +325,20 @@ public class KsefToolsTest : IDisposable
     {
         var ksefNumber = "1234567890-TEST";
         var invoiceHash = "hash123";
-        var invoicingDate = DateTimeOffset.UtcNow;
+        // Issue and invoicing dates differ, so the test shows the link uses the issue date.
+        var issueDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero);
+        var invoicingDate = new DateTimeOffset(2026, 1, 20, 10, 30, 0, TimeSpan.Zero);
         var expectedUrl = "https://ksef.mf.gov.pl/verify?hash=hash123";
-    
+
         var expectedResponse = new PagedInvoiceResponse
         {
             Invoices = new List<InvoiceSummary>
             {
                 new()
-                { 
+                {
                     KsefNumber = ksefNumber,
                     InvoiceHash = invoiceHash,
+                    IssueDate = issueDate,
                     InvoicingDate = invoicingDate
                 }
             }
@@ -363,7 +366,7 @@ public class KsefToolsTest : IDisposable
         Assert.Equal(expectedUrl, result);
         _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
             "1234567890",
-            invoicingDate.DateTime,
+            issueDate.DateTime,
             invoiceHash), Times.Once);
     }
     
@@ -432,19 +435,19 @@ public class KsefToolsTest : IDisposable
                 { 
                     KsefNumber = "KSEF-OTHER-1",
                     InvoiceHash = "other-hash-1",
-                    InvoicingDate = DateTimeOffset.UtcNow
+                    IssueDate = DateTimeOffset.UtcNow
                 },
                 new()
-                { 
+                {
                     KsefNumber = ksefNumber,
                     InvoiceHash = targetHash,
-                    InvoicingDate = targetDate
+                    IssueDate = targetDate
                 },
                 new()
-                { 
+                {
                     KsefNumber = "KSEF-OTHER-2",
                     InvoiceHash = "other-hash-2",
-                    InvoicingDate = DateTimeOffset.UtcNow.AddDays(-2)
+                    IssueDate = DateTimeOffset.UtcNow.AddDays(-2)
                 }
             }
         };

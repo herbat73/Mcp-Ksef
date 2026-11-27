@@ -231,7 +231,7 @@ public partial class KsefTools : IKsefTools
         
         var invoiceMetadata = metadata.Invoices.Single(x => x.KsefNumber == ksefNumber);
         var invoiceHash = invoiceMetadata.InvoiceHash;
-        var invoicingDate = invoiceMetadata.InvoicingDate;
+        var issueDate = invoiceMetadata.IssueDate;
         
         // The verification link is built from the seller's NIP. For our own sales invoices it may be
         // missing from the metadata, so fall back to our NIP; for other invoices that would give a wrong link.
@@ -246,7 +246,7 @@ public partial class KsefTools : IKsefTools
             sellerNip = _vatId;
         }
 
-        var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(sellerNip, invoicingDate.DateTime, invoiceHash);
+        var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(sellerNip, issueDate.DateTime, invoiceHash);
 
         return (invoiceForOnlineUrl, null);
     }
