@@ -868,7 +868,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, dateType);
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, dateType: dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -880,7 +880,7 @@ public class KsefToolsTest : IDisposable
         var captured = CaptureQueryFilters();
         var service = CreateService();
 
-        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None, dateType);
+        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None, dateType: dateType);
 
         Assert.Equal(dateType, captured()!.DateRange.DateType);
     }
@@ -931,6 +931,136 @@ public class KsefToolsTest : IDisposable
         Assert.Equal(subjectType, captured()!.SubjectType);
     }
 
+    private void SetupSingleInvoiceMetadata(string ksefNumber, string? sellerNip)
+    {
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedInvoiceResponse
+            {
+                Invoices = new List<InvoiceSummary>
+                {
+                    new()
+                    {
+                        KsefNumber = ksefNumber,
+                        InvoiceHash = "hash123",
+                        InvoicingDate = DateTimeOffset.UtcNow,
+                        Seller = sellerNip == null ? null : new Seller { Nip = sellerNip }
+                    }
+                }
+            });
+        _verificationLinkServiceMock
+            .Setup(x => x.BuildInvoiceVerificationUrl(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()))
+            .Returns("https://ksef.mf.gov.pl/verify");
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_PurchaseInvoice_UsesSellerNipFromMetadata()
+    {
+        SetupSingleInvoiceMetadata("5555555555-TEST", sellerNip: "5555555555");
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("5555555555-TEST", CancellationToken.None, InvoiceSubjectType.Subject2);
+
+        Assert.Equal("https://ksef.mf.gov.pl/verify", result);
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            "5555555555", It.IsAny<DateTime>(), "hash123"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_SalesInvoiceWithSellerNip_UsesSellerNipFromMetadata()
+    {
+        SetupSingleInvoiceMetadata("1234567890-TEST", sellerNip: "1234567890");
+        var service = CreateService();
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            "1234567890", It.IsAny<DateTime>(), "hash123"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetInvoiceUrl_SalesInvoiceWithoutSellerNip_FallsBackToOurNip()
+    {
+        Environment.SetEnvironmentVariable(EnvironmentConsts.VatId, "9999999999");
+        SetupSingleInvoiceMetadata("1234567890-TEST", sellerNip: null);
+        var service = CreateService();
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            "9999999999", It.IsAny<DateTime>(), "hash123"), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(InvoiceSubjectType.Subject2)]
+    [InlineData(InvoiceSubjectType.Subject3)]
+    [InlineData(InvoiceSubjectType.SubjectAuthorized)]
+    public async Task GetInvoiceUrl_NonSalesInvoiceWithoutSellerNip_ReturnsErrorAndDoesNotUseOurNip(InvoiceSubjectType subjectType)
+    {
+        SetupSingleInvoiceMetadata("5555555555-TEST", sellerNip: null);
+        var service = CreateService();
+
+        var result = await service.GetInvoiceUrl("5555555555-TEST", CancellationToken.None, subjectType);
+
+        Assert.Contains("Brak NIP sprzedawcy", result);
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetInvoiceQrWithKsef_PurchaseInvoice_UsesSellerNipAndReturnsImage()
+    {
+        SetupSingleInvoiceMetadata("5555555555-TEST", sellerNip: "5555555555");
+        var service = CreateService();
+
+        var result = (await service.GetInvoiceQrWithKsef("5555555555-TEST", CancellationToken.None, InvoiceSubjectType.Subject2)).ToList();
+
+        Assert.IsType<ImageContentBlock>(Assert.Single(result));
+        _verificationLinkServiceMock.Verify(x => x.BuildInvoiceVerificationUrl(
+            "5555555555", It.IsAny<DateTime>(), "hash123"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetInvoiceQrWithKsef_PurchaseInvoiceWithoutSellerNip_ReturnsErrorText()
+    {
+        SetupSingleInvoiceMetadata("5555555555-TEST", sellerNip: null);
+        var service = CreateService();
+
+        var result = (await service.GetInvoiceQrWithKsef("5555555555-TEST", CancellationToken.None, InvoiceSubjectType.Subject2)).ToList();
+
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result));
+        Assert.Contains("Brak NIP sprzedawcy", text.Text);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllInvoiceSubjectTypes))]
+    public async Task GetInvoiceUrl_PassesInvoiceSubjectTypeToQuery(InvoiceSubjectType subjectType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, subjectType);
+
+        Assert.Equal(subjectType, captured()!.SubjectType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllInvoiceSubjectTypes))]
+    public async Task GetInvoiceQrWithKsef_PassesInvoiceSubjectTypeToQuery(InvoiceSubjectType subjectType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None, subjectType);
+
+        Assert.Equal(subjectType, captured()!.SubjectType);
+    }
+
     [Fact]
     public async Task SearchMethods_WithoutInvoiceSubjectType_DefaultToSubject1()
     {
@@ -944,6 +1074,12 @@ public class KsefToolsTest : IDisposable
         Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
 
         await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+        Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
+
+        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None);
         Assert.Equal(InvoiceSubjectType.Subject1, captured()!.SubjectType);
     }
 

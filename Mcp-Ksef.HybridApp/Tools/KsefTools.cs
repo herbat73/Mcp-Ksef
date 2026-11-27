@@ -18,7 +18,6 @@ public partial class KsefTools : IKsefTools
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
-    private const string LookupScopeDescription = "Przeszukuje tylko faktury wystawione przez nasz podmiot (sprzedażowe) z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
     private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wynik zawiera tylko pierwszą stronę: HasMore = true oznacza, że jest więcej faktur, a IsTruncated = true, że wynik został obcięty. Gdy zapytanie się nie powiedzie, Error = true, a ErrorMessage zawiera opis błędu.";
     private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
     private const string InvoiceSubjectTypeDescription = "Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony";
@@ -184,12 +183,12 @@ public partial class KsefTools : IKsefTools
     }
     
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
-    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + LookupScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono, albo komunikat błędu, gdy zapytanie do KSeF się nie powiodło.")]
-    public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono, albo komunikat błędu, gdy zapytanie do KSeF się nie powiodło.")]
+    public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
 
-        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, dateType);
+        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
         return error ?? url;
     }
 
@@ -197,12 +196,13 @@ public partial class KsefTools : IKsefTools
     /// Builds the verification URL for an invoice. Returns an empty Url when the invoice was not found,
     /// or a non-null Error when the KSeF query failed.
     /// </summary>
-    private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, DateType dateType = DateType.Issue)
+    private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
     {
         await _ksefAuthorization.VerifyAuthToken(cancellationToken);
         
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
+            SubjectType = invoiceSubjectType,
             KsefNumber = ksefNumber,
             DateRange = GetMaxDataRange(dateType)
         };
@@ -233,18 +233,31 @@ public partial class KsefTools : IKsefTools
         var invoiceHash = invoiceMetadata.InvoiceHash;
         var invoicingDate = invoiceMetadata.InvoicingDate;
         
-        var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(_vatId, invoicingDate.DateTime, invoiceHash);
+        // The verification link is built from the seller's NIP. For our own sales invoices it may be
+        // missing from the metadata, so fall back to our NIP; for other invoices that would give a wrong link.
+        var sellerNip = invoiceMetadata.Seller?.Nip;
+        if (string.IsNullOrEmpty(sellerNip))
+        {
+            if (invoiceSubjectType != InvoiceSubjectType.Subject1)
+            {
+                _logger.LogWarning($"Seller NIP missing in metadata for ksefNumber: {ksefNumber}");
+                return (string.Empty, $"Brak NIP sprzedawcy w danych faktury o numerze KSeF: {ksefNumber}");
+            }
+            sellerNip = _vatId;
+        }
+
+        var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(sellerNip, invoicingDate.DateTime, invoiceHash);
 
         return (invoiceForOnlineUrl, null);
     }
     
     [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
-    [Description("Generuje kod QR do weryfikacji faktury w KSeF jako obraz PNG podpisany numerem KSeF – taki kod umieszcza się na wydruku lub wizualizacji faktury. Kod prowadzi do linku zwracanego przez get_invoice_url_by_ksef. " + LookupScopeDescription + " Gdy faktury nie znaleziono lub wystąpił błąd, zwraca komunikat tekstowy zamiast obrazu.")]
-    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
+    [Description("Generuje kod QR do weryfikacji faktury w KSeF jako obraz PNG podpisany numerem KSeF – taki kod umieszcza się na wydruku lub wizualizacji faktury. Kod prowadzi do linku zwracanego przez get_invoice_url_by_ksef. " + SearchScopeDescription + " Gdy faktury nie znaleziono lub wystąpił błąd, zwraca komunikat tekstowy zamiast obrazu.")]
+    public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
-        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber}");
+        _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
         
-        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, dateType);
+        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
         if (error != null) return GetErroredContentInfo(error);
         if (string.IsNullOrEmpty(url)) return GetErroredContentInfo($"Nie udało się pobrać danych dla numeru KSeF: {ksefNumber}");
         
