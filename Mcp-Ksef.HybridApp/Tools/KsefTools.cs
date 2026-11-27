@@ -4,12 +4,19 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Invoices;
 using McpKsef.HybridApp.Services;
+using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using Shared.Consts;
 using ModelContextProtocol.Server;
 
 namespace McpKsef.HybridApp.Tools;
 
+/// <summary>
+/// KSeF tools exposed over MCP.
+/// Failures are reported by throwing <see cref="McpException"/>: the MCP SDK turns it into a tool result
+/// with IsError = true and the exception message as content, so the client and the model can tell an
+/// error from a real result. Cancellation requested by the caller is not caught.
+/// </summary>
 [McpServerToolType]
 public partial class KsefTools : IKsefTools
 {
@@ -18,7 +25,8 @@ public partial class KsefTools : IKsefTools
     private readonly IKSeFClient _ksefClient;
     private readonly IVerificationLinkService _verificationLinkService;
     private readonly IKsefAuthorizationService _ksefAuthorization;
-    private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wyniki są stronicowane: domyślnie zwracana jest pierwsza strona (pageOffset = 0) po 10 faktur. Gdy HasMore = true, pobierz kolejną stronę, zwiększając pageOffset o 1. IsTruncated = true oznacza, że KSeF obciął wynik – zawęź zakres dat. Gdy zapytanie się nie powiedzie, Error = true, a ErrorMessage zawiera opis błędu.";
+    private const string ErrorResultDescription = "Gdy operacja się nie powiedzie, wynik jest oznaczony jako błąd i zawiera jego opis.";
+    private const string SearchResultDescription = "Zwraca metadane faktur (m.in. numer KSeF, numer faktury, daty, kwoty, dane stron) bez pełnej treści – do jej pobrania użyj get_invoice_by_ksef. Wyniki są stronicowane: domyślnie zwracana jest pierwsza strona (pageOffset = 0) po 10 faktur. Gdy HasMore = true, pobierz kolejną stronę, zwiększając pageOffset o 1. IsTruncated = true oznacza, że KSeF obciął wynik – zawęź zakres dat. " + ErrorResultDescription;
     private const string SearchScopeDescription = "Domyślnie przeszukuje faktury wystawione przez nasz podmiot (sprzedażowe); parametrem invoiceSubjectType można przeszukać np. faktury zakupowe. Obejmuje faktury z ostatnich 3 miesięcy; rodzaj daty określa parametr dateType.";
     private const string InvoiceSubjectTypeDescription = "Rola naszego podmiotu na fakturze: Subject1 – sprzedawca, czyli faktury wystawione/sprzedażowe (domyślnie), Subject2 – nabywca, czyli faktury otrzymane/zakupowe, Subject3 – podmiot trzeci (np. odbiorca, płatnik, faktor), SubjectAuthorized – podmiot upoważniony";
     private const string KsefNumberDescription = "Numer KSeF faktury nadany przez system KSeF, np. 5265877635-20250826-0100001AF629-AF";
@@ -29,7 +37,7 @@ public partial class KsefTools : IKsefTools
     private const string PageOffsetDescription = "Numer strony wyników, liczony od 0 (domyślnie 0). Użyj kolejnych wartości, gdy w poprzednim wyniku HasMore = true.";
     private const string PageSizeDescription = "Liczba faktur na stronie, od 10 do 250 (domyślnie 10).";
     private const string KsefError = "Wystąpił nieoczekiwany błąd podczas wykonania zapytania do KSeF - ";
-    
+
     public KsefTools(ILogger<KsefTools> logger, IKsefAuthorizationService ksefAuthorization, IKSeFClient ksefClient, IVerificationLinkService verificationLinkService)
     {
         _logger = logger;
@@ -38,9 +46,9 @@ public partial class KsefTools : IKsefTools
         _ksefClient = ksefClient;
         _verificationLinkService =  verificationLinkService;
     }
-    
+
     [McpServerTool(Name = "get_invoice_by_ksef", Title = "Pobierz fakturę po numerze ksef")]
-    [Description("Pobiera pełną treść faktury z KSeF na podstawie numeru KSeF i zwraca ją jako dokument XML (struktura logiczna FA). Użyj, gdy potrzebujesz szczegółów faktury: pozycji, stawek i kwot VAT, danych sprzedawcy i nabywcy. Numer KSeF można znaleźć narzędziami wyszukującymi faktury (pole KsefNumber w wynikach).")]
+    [Description("Pobiera pełną treść faktury z KSeF na podstawie numeru KSeF i zwraca ją jako dokument XML (struktura logiczna FA). Użyj, gdy potrzebujesz szczegółów faktury: pozycji, stawek i kwot VAT, danych sprzedawcy i nabywcy. Numer KSeF można znaleźć narzędziami wyszukującymi faktury (pole KsefNumber w wynikach). " + ErrorResultDescription)]
     public async Task<string> GetInvoice([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoice)} called ksefNumber: {ksefNumber}");
@@ -49,7 +57,7 @@ public partial class KsefTools : IKsefTools
         {
             await _ksefAuthorization.VerifyAuthToken(cancellationToken);
 
-            return await _ksefClient.GetInvoiceAsync(NormalizeKsefNumber(ksefNumber), _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken);
+            return await _ksefClient.GetInvoiceAsync(Normalize(ksefNumber), _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -58,12 +66,13 @@ public partial class KsefTools : IKsefTools
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting invoice");
-            return $"{KsefError}{ex.Message}";
+            throw new McpException($"{KsefError}{ex.Message}", ex);
         }
     }
 
-    private static string NormalizeKsefNumber(string? ksefNumber) => ksefNumber?.Trim() ?? string.Empty;
-    
+    /// <summary>Trims surrounding whitespace from an identifier before it is sent to KSeF.</summary>
+    private static string Normalize(string? value) => value?.Trim() ?? string.Empty;
+
     [McpServerTool(Name = "query_invoices", Title = "Pobierz faktury na podstawie zapytania")]
     [Description("Wyszukuje w KSeF faktury z podanego zakresu dat (maksymalnie 3 miesiące). Domyślnie zwraca faktury wystawione przez nasz podmiot (sprzedażowe), filtrowane po dacie wystawienia. Parametrem invoiceSubjectType można pobrać np. faktury zakupowe, a parametrem dateType zmienić rodzaj daty. " + SearchResultDescription)]
     public async Task<McpPagedInvoiceResponse> QueryInvoices(
@@ -106,7 +115,7 @@ public partial class KsefTools : IKsefTools
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
             SubjectType = invoiceSubjectType,
-            InvoiceNumber = invoiceNumber,
+            InvoiceNumber = Normalize(invoiceNumber),
             DateRange = GetMaxDataRange(dateType)
         };
 
@@ -131,7 +140,7 @@ public partial class KsefTools : IKsefTools
             BuyerIdentifier = new BuyerIdentifier
             {
                 Type = BuyerIdentifierType.Nip,
-                Value = nip
+                Value = Normalize(nip)
             },
             DateRange = GetMaxDataRange(dateType)
         };
@@ -157,7 +166,7 @@ public partial class KsefTools : IKsefTools
             BuyerIdentifier = new BuyerIdentifier
             {
                 Type = BuyerIdentifierType.VatUe,
-                Value = vatUe
+                Value = Normalize(vatUe)
             },
             DateRange = GetMaxDataRange(dateType)
         };
@@ -167,30 +176,30 @@ public partial class KsefTools : IKsefTools
 
     /// <summary>
     /// Validates the paging parameters and queries one page of invoice metadata.
-    /// Errors (invalid paging or a failed KSeF call) are returned in the response, not thrown.
+    /// Invalid paging and failed KSeF calls throw <see cref="McpException"/>.
     /// </summary>
     private async Task<McpPagedInvoiceResponse> QueryInvoicePage(InvoiceQueryFilters filters, int pageOffset, int pageSize, CancellationToken cancellationToken)
     {
         if (pageOffset < 0)
         {
-            return new McpPagedInvoiceResponse($"Nieprawidłowy numer strony pageOffset: {pageOffset}. Podaj wartość 0 lub większą.");
+            throw new McpException($"Nieprawidłowy numer strony pageOffset: {pageOffset}. Podaj wartość 0 lub większą.");
         }
         if (pageSize < MinPageSize || pageSize > MaxPageSize)
         {
-            return new McpPagedInvoiceResponse($"Nieprawidłowy rozmiar strony pageSize: {pageSize}. Podaj wartość od {MinPageSize} do {MaxPageSize}.");
+            throw new McpException($"Nieprawidłowy rozmiar strony pageSize: {pageSize}. Podaj wartość od {MinPageSize} do {MaxPageSize}.");
         }
 
+        PagedInvoiceResponse? invoiceList;
         try
         {
             await _ksefAuthorization.VerifyAuthToken(cancellationToken);
 
-            var invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(
+            invoiceList = await _ksefClient.QueryInvoiceMetadataAsync(
                 requestPayload: filters,
                 accessToken: _ksefAuthorization.GetAuthenticationInfo().AccessToken.Token,
                 pageOffset: pageOffset,
                 pageSize: pageSize,
                 cancellationToken: cancellationToken);
-            return new McpPagedInvoiceResponse(invoiceList);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -199,28 +208,36 @@ public partial class KsefTools : IKsefTools
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting QueryInvoiceMetadataAsync");
-            return new McpPagedInvoiceResponse($"{KsefError}{ex.Message}");
+            throw new McpException($"{KsefError}{ex.Message}", ex);
         }
+
+        if (invoiceList == null)
+        {
+            _logger.LogWarning("KSeF returned no invoice metadata page; returning an empty page");
+            return new McpPagedInvoiceResponse();
+        }
+        return new McpPagedInvoiceResponse(invoiceList);
     }
 
     [McpServerTool(Name = "get_invoice_url_by_ksef", Title = "Pobierz link do faktury po numerze ksef")]
-    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono, albo komunikat błędu, gdy zapytanie do KSeF się nie powiodło.")]
+    [Description("Zwraca link weryfikacyjny do faktury w KSeF (ten sam, który zawiera kod QR na fakturze), pod którym można sprawdzić, że faktura istnieje w KSeF. " + SearchScopeDescription + " Zwraca pusty tekst, gdy faktury nie znaleziono. " + ErrorResultDescription)]
     public async Task<string> GetInvoiceUrl([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceUrl)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
 
-        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
-        return error ?? url;
+        var link = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
+        return link?.Url ?? string.Empty;
     }
 
     /// <summary>
-    /// Builds the verification URL for an invoice. Returns an empty Url when the invoice was not found,
-    /// or a non-null Error when authentication or the KSeF query failed.
+    /// Builds the verification URL for an invoice, together with the invoice's KSeF number as KSeF stores it.
+    /// Returns null when the invoice was not found. Throws <see cref="McpException"/> when authentication
+    /// or the KSeF query fails, or when no seller NIP is available for the link.
     /// </summary>
-    private async Task<(string Url, string? Error)> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
+    private async Task<(string Url, string KsefNumber)?> BuildInvoiceUrl(string ksefNumber, CancellationToken cancellationToken, InvoiceSubjectType invoiceSubjectType, DateType dateType)
     {
         // Trim once and use the same value in the KSeF query, the matching and the logs.
-        ksefNumber = NormalizeKsefNumber(ksefNumber);
+        ksefNumber = Normalize(ksefNumber);
 
         var invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
@@ -228,10 +245,10 @@ public partial class KsefTools : IKsefTools
             KsefNumber = ksefNumber,
             DateRange = GetMaxDataRange(dateType)
         };
-        
+
         _logger.LogDebug($"invoiceMetadataQueryRequest created for ksefNumber: {ksefNumber} DateRange from {invoiceMetadataQueryRequest.DateRange.From} to {invoiceMetadataQueryRequest.DateRange.To}");
 
-        PagedInvoiceResponse metadata;
+        PagedInvoiceResponse? metadata;
         try
         {
             await _ksefAuthorization.VerifyAuthToken(cancellationToken);
@@ -248,7 +265,7 @@ public partial class KsefTools : IKsefTools
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting invoice metadata");
-            return (string.Empty, $"{KsefError}{ex.Message}");
+            throw new McpException($"{KsefError}{ex.Message}", ex);
         }
 
         // KSeF may match the number case-insensitively, so compare the same way to avoid missing the invoice.
@@ -257,12 +274,12 @@ public partial class KsefTools : IKsefTools
         if (invoiceMetadata == null)
         {
             _logger.LogWarning($"No invoice metadata found for ksefNumber: {ksefNumber}");
-            return (string.Empty, null);
+            return null;
         }
 
         var invoiceHash = invoiceMetadata.InvoiceHash;
         var issueDate = invoiceMetadata.IssueDate;
-        
+
         // The verification link is built from the seller's NIP. For our own sales invoices it may be
         // missing from the metadata, so fall back to our NIP; for other invoices that would give a wrong link.
         var sellerNip = invoiceMetadata.Seller?.Nip;
@@ -273,48 +290,38 @@ public partial class KsefTools : IKsefTools
         if (string.IsNullOrEmpty(sellerNip))
         {
             _logger.LogWarning($"Seller NIP missing in metadata for ksefNumber: {ksefNumber}");
-            return (string.Empty, $"Brak NIP sprzedawcy w danych faktury o numerze KSeF: {ksefNumber}");
+            throw new McpException($"Brak NIP sprzedawcy w danych faktury o numerze KSeF: {invoiceMetadata.KsefNumber}");
         }
 
         var invoiceForOnlineUrl = _verificationLinkService.BuildInvoiceVerificationUrl(sellerNip, issueDate.DateTime, invoiceHash);
 
-        return (invoiceForOnlineUrl, null);
+        return (invoiceForOnlineUrl, invoiceMetadata.KsefNumber);
     }
-    
+
     [McpServerTool(Name = "get_invoice_qr_ksef", Title = "Pobierz qr kod do faktury po numerze ksef")]
-    [Description("Generuje kod QR do weryfikacji faktury w KSeF jako obraz PNG podpisany numerem KSeF – taki kod umieszcza się na wydruku lub wizualizacji faktury. Kod prowadzi do linku zwracanego przez get_invoice_url_by_ksef. " + SearchScopeDescription + " Gdy faktury nie znaleziono lub wystąpił błąd, zwraca komunikat tekstowy zamiast obrazu.")]
+    [Description("Generuje kod QR do weryfikacji faktury w KSeF jako obraz PNG podpisany numerem KSeF – taki kod umieszcza się na wydruku lub wizualizacji faktury. Kod prowadzi do linku zwracanego przez get_invoice_url_by_ksef. " + SearchScopeDescription + " Gdy faktury nie znaleziono lub operacja się nie powiedzie, wynik jest oznaczony jako błąd i zawiera jego opis.")]
     public async Task<IEnumerable<ContentBlock>> GetInvoiceQrWithKsef([Description(KsefNumberDescription)] string ksefNumber, CancellationToken cancellationToken, [Description(InvoiceSubjectTypeDescription)] InvoiceSubjectType invoiceSubjectType = InvoiceSubjectType.Subject1, [Description(DateTypeDescription)] DateType dateType = DateType.Issue)
     {
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} called ksefNumber: {ksefNumber} invoiceSubjectType: {invoiceSubjectType} dateType: {dateType}");
-        
-        var (url, error) = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType);
-        if (error != null) return GetErroredContentInfo(error);
-        if (string.IsNullOrEmpty(url)) return GetErroredContentInfo($"Nie udało się pobrać danych dla numeru KSeF: {ksefNumber}");
-        
-        var qrCode = QrCodeService.GenerateQrCode(url);
-        if (qrCode.Length == 0) return GetErroredContentInfo($"Nie udało wygenerować kodu QR dla numeru KSeF: {ksefNumber}");
-        
-        var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, ksefNumber);
-        if (labeledQr.Length == 0) return GetErroredContentInfo($"Nie udało podpisać QR kody numerem KSeF: {ksefNumber}");
-        
+
+        var link = await BuildInvoiceUrl(ksefNumber, cancellationToken, invoiceSubjectType, dateType)
+            ?? throw new McpException($"Nie znaleziono faktury o numerze KSeF: {Normalize(ksefNumber)}");
+
+        // Label the QR with the number as KSeF stores it, not as typed: it is printed on the invoice.
+        var officialKsefNumber = link.KsefNumber;
+
+        var qrCode = QrCodeService.GenerateQrCode(link.Url);
+        if (qrCode.Length == 0) throw new McpException($"Nie udało się wygenerować kodu QR dla numeru KSeF: {officialKsefNumber}");
+
+        var labeledQr = QrCodeService.AddLabelToQrCode(qrCode, officialKsefNumber);
+        if (labeledQr.Length == 0) throw new McpException($"Nie udało się podpisać kodu QR numerem KSeF: {officialKsefNumber}");
+
         // FromBytes base64-encodes the PNG, as the MCP image content requires.
         var image = ImageContentBlock.FromBytes(labeledQr, "image/png");
         image.Annotations = new Annotations { Audience = [Role.User], Priority = 0.5f };
         var contents = new List<ContentBlock> { image };
 
         _logger.LogInformation($"{AppConsts.KsefToolName}.{nameof(GetInvoiceQrWithKsef)} ret: {labeledQr.Length} bytes");
-        return contents;
-    }
-    
-    private static List<ContentBlock> GetErroredContentInfo(string errorInfo)
-    {
-        var contents = new List<ContentBlock>
-        {
-            new TextContentBlock {
-                Text = errorInfo,
-                Annotations = new Annotations { Audience = [Role.User], Priority = 0.7f }
-            }
-        };
         return contents;
     }
 
