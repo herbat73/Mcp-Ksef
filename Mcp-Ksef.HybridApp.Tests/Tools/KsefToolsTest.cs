@@ -522,6 +522,50 @@ public class KsefToolsTest : IDisposable
     }
     
     [Fact]
+    public async Task GetInvoiceQrWithKsef_Result_SerializesAsCallToolResult()
+    {
+        // Regression: ModelContextProtocol 2.4.0 failed to serialize annotated content blocks
+        // (csharp-sdk issue #2012) with "Cannot insert the values of 'TypeInfoResolver'...".
+        var invoicingDate = DateTimeOffset.UtcNow;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedInvoiceResponse
+            {
+                Invoices = new List<InvoiceSummary>
+                {
+                    new() { KsefNumber = "1234567890-TEST", InvoiceHash = "hash123", InvoicingDate = invoicingDate }
+                }
+            });
+        _verificationLinkServiceMock
+            .Setup(x => x.BuildInvoiceVerificationUrl(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()))
+            .Returns("https://ksef.mf.gov.pl/verify");
+        var service = CreateService();
+
+        var content = await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None);
+        var callToolResult = new CallToolResult { Content = content.ToList() };
+
+        // The MCP server serializes tool results through the SDK's internal source-generated context
+        // (McpJsonUtilities.JsonContext); the bug only reproduces on that path, not with DefaultOptions.
+        var contextType = typeof(ModelContextProtocol.McpJsonUtilities).GetNestedType(
+            "JsonContext", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(contextType);
+        var context = (System.Text.Json.Serialization.JsonSerializerContext)contextType!
+            .GetProperty("Default", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(null)!;
+
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(
+            callToolResult, context.GetTypeInfo(typeof(CallToolResult))!);
+
+        Assert.NotNull(json);
+        Assert.Equal("image", json!["content"]![0]!["type"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task GetInvoiceQrWithKsef_WhenUrlIsEmpty_ReturnsErrorMessage()
     {
         var ksefNumber = "INVALID";
