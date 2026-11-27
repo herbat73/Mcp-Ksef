@@ -58,12 +58,13 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var m = t.GetMethod(
                 nameof(IKsefTools.GetInvoiceByInvoiceNumber),
-                [typeof(string), typeof(CancellationToken)]);
+                [typeof(string), typeof(CancellationToken), typeof(DateType)]);
 
             AssertReturnsTaskOf(m!, typeof(McpPagedInvoiceResponse));
             AssertMethodParameters(m!,
                 ("invoiceNumber", typeof(string)),
-                ("cancellationToken", typeof(CancellationToken)));
+                ("cancellationToken", typeof(CancellationToken)),
+                ("dateType", typeof(DateType)));
         }
 
         [Fact]
@@ -72,12 +73,13 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var m = t.GetMethod(
                 nameof(IKsefTools.GetInvoiceByBuyerNip),
-                [typeof(string), typeof(CancellationToken)]);
+                [typeof(string), typeof(CancellationToken), typeof(DateType)]);
 
             AssertReturnsTaskOf(m!, typeof(McpPagedInvoiceResponse));
             AssertMethodParameters(m!,
                 ("nip", typeof(string)),
-                ("cancellationToken", typeof(CancellationToken)));
+                ("cancellationToken", typeof(CancellationToken)),
+                ("dateType", typeof(DateType)));
         }
 
         [Fact]
@@ -86,12 +88,13 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var m = t.GetMethod(
                 nameof(IKsefTools.GetInvoiceByBuyerVatUe),
-                [typeof(string), typeof(CancellationToken)]);
+                [typeof(string), typeof(CancellationToken), typeof(DateType)]);
 
             AssertReturnsTaskOf(m!, typeof(McpPagedInvoiceResponse));
             AssertMethodParameters(m!,
                 ("vatUe", typeof(string)),
-                ("cancellationToken", typeof(CancellationToken)));
+                ("cancellationToken", typeof(CancellationToken)),
+                ("dateType", typeof(DateType)));
         }
 
         [Fact]
@@ -100,12 +103,13 @@ namespace McpKsef.HybridApp.Tools.Tests
             var t = typeof(IKsefTools);
             var m = t.GetMethod(
                 nameof(IKsefTools.GetInvoiceUrl),
-                [typeof(string), typeof(CancellationToken)]);
+                [typeof(string), typeof(CancellationToken), typeof(DateType)]);
 
             AssertReturnsTaskOf(m!, typeof(string));
             AssertMethodParameters(m!,
                 ("ksefNumber", typeof(string)),
-                ("cancellationToken", typeof(CancellationToken)));
+                ("cancellationToken", typeof(CancellationToken)),
+                ("dateType", typeof(DateType)));
         }
         
         [Fact]
@@ -134,10 +138,10 @@ namespace McpKsef.HybridApp.Tools.Tests
             {
                 [nameof(IKsefTools.GetInvoice)] = [typeof(string), typeof(CancellationToken)],
                 [nameof(IKsefTools.QueryInvoices)] = [typeof(DateTime), typeof(DateTime), typeof(CancellationToken), typeof(InvoiceSubjectType), typeof(DateType)],
-                [nameof(IKsefTools.GetInvoiceByInvoiceNumber)] = [typeof(string), typeof(CancellationToken)],
-                [nameof(IKsefTools.GetInvoiceByBuyerNip)] = [typeof(string), typeof(CancellationToken)],
-                [nameof(IKsefTools.GetInvoiceByBuyerVatUe)] = [typeof(string), typeof(CancellationToken)],
-                [nameof(IKsefTools.GetInvoiceUrl)] = [typeof(string), typeof(CancellationToken)],
+                [nameof(IKsefTools.GetInvoiceByInvoiceNumber)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
+                [nameof(IKsefTools.GetInvoiceByBuyerNip)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
+                [nameof(IKsefTools.GetInvoiceByBuyerVatUe)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
+                [nameof(IKsefTools.GetInvoiceUrl)] = [typeof(string), typeof(CancellationToken), typeof(DateType)],
                 [nameof(IKsefTools.GetInvoiceQrWithKsef)] = [typeof(string), typeof(CancellationToken)]
             };
 

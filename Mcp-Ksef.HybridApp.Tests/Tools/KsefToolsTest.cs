@@ -799,4 +799,99 @@ public class KsefToolsTest : IDisposable
         Assert.Contains($"{KsefErrorPrefix}boom", textContent.Text);
         Assert.DoesNotContain(contentList, c => c is ImageContentBlock);
     }
+
+    public static TheoryData<DateType> AllDateTypes()
+    {
+        var data = new TheoryData<DateType>();
+        foreach (var dateType in Enum.GetValues<DateType>())
+        {
+            data.Add(dateType);
+        }
+        return data;
+    }
+
+    private Func<InvoiceQueryFilters?> CaptureQueryFilters()
+    {
+        InvoiceQueryFilters? captured = null;
+        _ksefClientMock.Setup(c => c.QueryInvoiceMetadataAsync(
+                It.IsAny<InvoiceQueryFilters>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<SortOrder>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<InvoiceQueryFilters, string, int?, int?, SortOrder, CancellationToken>((req, _, _, _, _, _) => captured = req)
+            .ReturnsAsync(new PagedInvoiceResponse { Invoices = new List<InvoiceSummary>() });
+        return () => captured;
+    }
+
+    [Theory]
+    [MemberData(nameof(AllDateTypes))]
+    public async Task GetInvoiceByInvoiceNumber_PassesDateTypeToQuery(DateType dateType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None, dateType);
+
+        Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllDateTypes))]
+    public async Task GetInvoiceByBuyerNip_PassesDateTypeToQuery(DateType dateType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None, dateType);
+
+        Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllDateTypes))]
+    public async Task GetInvoiceByBuyerVatUe_PassesDateTypeToQuery(DateType dateType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None, dateType);
+
+        Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllDateTypes))]
+    public async Task GetInvoiceUrl_PassesDateTypeToQuery(DateType dateType)
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None, dateType);
+
+        Assert.Equal(dateType, captured()!.DateRange.DateType);
+    }
+
+    [Fact]
+    public async Task QueryMethods_WithoutDateType_DefaultToIssue()
+    {
+        var captured = CaptureQueryFilters();
+        var service = CreateService();
+
+        await service.GetInvoiceByInvoiceNumber("FV/2026/01/001", CancellationToken.None);
+        Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
+
+        await service.GetInvoiceByBuyerNip("9876543210", CancellationToken.None);
+        Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
+
+        await service.GetInvoiceByBuyerVatUe("DE123456789", CancellationToken.None);
+        Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
+
+        await service.GetInvoiceUrl("1234567890-TEST", CancellationToken.None);
+        Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
+
+        await service.GetInvoiceQrWithKsef("1234567890-TEST", CancellationToken.None);
+        Assert.Equal(DateType.Issue, captured()!.DateRange.DateType);
+    }
 }
